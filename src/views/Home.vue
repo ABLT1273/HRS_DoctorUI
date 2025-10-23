@@ -33,6 +33,7 @@
               border
               style="width: 100%; margin-top: 20px"
               highlight-current-row
+              @cell-click="handleMainScheduleCellClick"
               @cell-mouse-enter="handleCellEnter"
               @cell-mouse-leave="handleCellLeave"
               :cell-class-name="getCellClassName"
@@ -46,6 +47,15 @@
                 :label="day.label"
               />
             </el-table>
+            <div class="schedule-action-area">
+              <el-button
+                type="success"
+                :disabled="!selectedScheduleShift"
+                @click="openScheduleAdjustDialog"
+              >
+                申请调整排班
+              </el-button>
+            </div>
           </div>
 
           <!-- 下部分内容区 -->
@@ -66,9 +76,6 @@
                     @click="toggleCurrentShift"
                   >
                     当前排班
-                  </el-button>
-                  <el-button type="success" @click="openScheduleAdjustDialog">
-                    申请调整排班
                   </el-button>
                 </div>
                 <div class="right-controls">
@@ -163,7 +170,7 @@
     <el-dialog
       v-model="scheduleAdjustDialogVisible"
       title="申请调整排班"
-      width="700px"
+      width="900px"
       @close="closeScheduleAdjustDialog"
     >
       <el-form :model="scheduleAdjustForm" label-width="100px">
@@ -233,7 +240,6 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="closeScheduleAdjustDialog">关闭</el-button>
         <el-button @click="closeScheduleAdjustDialog">取消</el-button>
         <el-button type="primary" @click="submitScheduleAdjust">提交</el-button>
       </template>
@@ -275,58 +281,58 @@ const scheduleData = [
   {
     timeSlot: '上午 8:00-12:00',
     week1_mon: '李医生',
-    week1_tue: '张医生',
+    week1_tue: '张艺',
     week1_wed: '',
-    week1_thu: '张医生',
+    week1_thu: '张艺',
     week1_fri: '',
-    week2_mon: '张医生',
+    week2_mon: '张艺',
     week2_tue: '王医生',
     week2_wed: '',
-    week2_thu: '张医生',
+    week2_thu: '张艺',
     week2_fri: '',
-    week3_mon: '张医生',
+    week3_mon: '张艺',
     week3_tue: '',
-    week3_wed: '张医生',
+    week3_wed: '张艺',
     week3_thu: '',
-    week3_fri: '张医生',
-    week3_sat: '张医生',
+    week3_fri: '张艺',
+    week3_sat: '张艺',
     week3_sun: '',
   },
   {
     timeSlot: '下午 14:00-18:00',
     week1_mon: '',
-    week1_tue: '张医生',
+    week1_tue: '张艺',
     week1_wed: '',
-    week1_thu: '张医生',
+    week1_thu: '张艺',
     week1_fri: '',
-    week2_mon: '张医生',
+    week2_mon: '张艺',
     week2_tue: '',
-    week2_wed: '张医生',
+    week2_wed: '张艺',
     week2_thu: '',
-    week2_fri: '张医生',
+    week2_fri: '张艺',
     week3_mon: '',
-    week3_tue: '张医生',
+    week3_tue: '张艺',
     week3_wed: '',
-    week3_thu: '张医生',
+    week3_thu: '张艺',
     week3_fri: '',
     week3_sat: '',
-    week3_sun: '张医生',
+    week3_sun: '张艺',
   },
   {
     timeSlot: '晚上 19:00-21:00',
-    week1_mon: '张医生',
+    week1_mon: '张艺',
     week1_tue: '',
     week1_wed: '',
     week1_thu: '',
-    week1_fri: '张医生',
+    week1_fri: '张艺',
     week2_mon: '',
     week2_tue: '',
     week2_wed: '',
-    week2_thu: '张医生',
+    week2_thu: '张艺',
     week2_fri: '',
     week3_mon: '',
     week3_tue: '',
-    week3_wed: '张医生',
+    week3_wed: '张艺',
     week3_thu: '',
     week3_fri: '',
     week3_sat: '',
@@ -334,15 +340,15 @@ const scheduleData = [
   },
 ]
 
-// 患者列表数据
+// 患者列表数据 - 从10/23开始的两周测试数据
 const patientList = ref([
-  // 10月20日患者
+  // 10月23日患者 (周三)
   {
     name: '张三',
     gender: '男',
     age: 35,
     department: '内科',
-    date: '2025-10-20',
+    date: '2025-10-23',
     shift: '上午',
   },
   {
@@ -350,81 +356,164 @@ const patientList = ref([
     gender: '女',
     age: 28,
     department: '内科',
-    date: '2025-10-20',
-    shift: '上午',
+    date: '2025-10-23',
+    shift: '下午',
   },
+  // 10月24日患者 (周四)
   {
     name: '王五',
     gender: '男',
     age: 42,
     department: '内科',
-    date: '2025-10-20',
+    date: '2025-10-24',
     shift: '上午',
   },
   {
     name: '赵六',
     gender: '女',
     age: 31,
-    department: '内科',
-    date: '2025-10-20',
+    department: '外科',
+    date: '2025-10-24',
     shift: '下午',
   },
+  // 10月25日患者 (周五)
   {
     name: '钱七',
     gender: '男',
     age: 55,
     department: '内科',
-    date: '2025-10-20',
-    shift: '下午',
+    date: '2025-10-25',
+    shift: '上午',
   },
   {
     name: '孙八',
     gender: '女',
     age: 40,
     department: '内科',
-    date: '2025-10-20',
+    date: '2025-10-25',
     shift: '晚上',
   },
-  // 10月21日患者
+  // 10月26日患者 (周六)
   {
     name: '周九',
     gender: '男',
     age: 33,
     department: '内科',
-    date: '2025-10-21',
+    date: '2025-10-26',
     shift: '上午',
   },
+  // 10月27日患者 (周日)
   {
     name: '吴十',
     gender: '女',
     age: 45,
-    department: '内科',
-    date: '2025-10-21',
-    shift: '上午',
+    department: '外科',
+    date: '2025-10-27',
+    shift: '下午',
   },
+  // 10月28日患者 (周一)
   {
     name: '郑十一',
     gender: '男',
     age: 38,
     department: '内科',
-    date: '2025-10-21',
-    shift: '下午',
+    date: '2025-10-28',
+    shift: '上午',
   },
   {
     name: '王十二',
     gender: '女',
     age: 29,
     department: '内科',
-    date: '2025-10-21',
-    shift: '下午',
+    date: '2025-10-28',
+    shift: '晚上',
   },
+  // 10月29日患者 (周二)
   {
     name: '李十三',
     gender: '男',
     age: 52,
     department: '内科',
-    date: '2025-10-21',
+    date: '2025-10-29',
+    shift: '下午',
+  },
+  // 10月30日患者 (周三)
+  {
+    name: '陈十四',
+    gender: '女',
+    age: 36,
+    department: '内科',
+    date: '2025-10-30',
+    shift: '上午',
+  },
+  {
+    name: '刘十五',
+    gender: '男',
+    age: 48,
+    department: '外科',
+    date: '2025-10-30',
+    shift: '下午',
+  },
+  // 10月31日患者 (周四)
+  {
+    name: '杨十六',
+    gender: '女',
+    age: 27,
+    department: '内科',
+    date: '2025-10-31',
+    shift: '上午',
+  },
+  {
+    name: '黄十七',
+    gender: '男',
+    age: 62,
+    department: '内科',
+    date: '2025-10-31',
+    shift: '下午',
+  },
+  // 11月1日患者 (周五)
+  {
+    name: '朱十八',
+    gender: '女',
+    age: 34,
+    department: '内科',
+    date: '2025-11-01',
+    shift: '上午',
+  },
+  {
+    name: '林十九',
+    gender: '男',
+    age: 41,
+    department: '内科',
+    date: '2025-11-01',
     shift: '晚上',
+  },
+  // 11月2日患者 (周六)
+  {
+    name: '胡二十',
+    gender: '女',
+    age: 50,
+    department: '内科',
+    date: '2025-11-02',
+    shift: '上午',
+  },
+  // 11月3日患者 (周日)
+  {
+    name: '徐二一',
+    gender: '男',
+    age: 39,
+    department: '外科',
+    date: '2025-11-03',
+    shift: '下午',
+  },
+  // 11月4日患者 (周一)
+  {
+    name: '何二二',
+    gender: '女',
+    age: 44,
+    department: '内科',
+    date: '2025-11-04',
+    shift: '上午',
   },
 ])
 
@@ -433,6 +522,9 @@ const showCurrentShift = ref(false)
 const searchName = ref('')
 const filteredPatientList = ref([...patientList.value]) // 初始为全部患者
 const currentShiftDisplay = ref('') // 显示当前筛选的班次信息
+
+// 选中的排班班次（用于申请调整排班）
+const selectedScheduleShift = ref(null)
 
 // 调整排班弹窗相关
 const scheduleAdjustDialogVisible = ref(false)
@@ -460,30 +552,30 @@ const miniScheduleData = [
   {
     timeSlot: '上午',
     mon: '李医生',
-    tue: '张医生',
+    tue: '张艺',
     wed: '',
-    thu: '张医生',
+    thu: '张艺',
     fri: '',
-    sat: '张医生',
+    sat: '张艺',
     sun: '',
   },
   {
     timeSlot: '下午',
     mon: '',
-    tue: '张医生',
+    tue: '张艺',
     wed: '',
-    thu: '张医生',
+    thu: '张艺',
     fri: '',
     sat: '',
-    sun: '张医生',
+    sun: '张艺',
   },
   {
     timeSlot: '晚上',
-    mon: '张医生',
+    mon: '张艺',
     tue: '',
     wed: '',
     thu: '',
-    fri: '张医生',
+    fri: '张艺',
     sat: '',
     sun: '',
   },
@@ -506,7 +598,7 @@ const getDoctorShiftInfo = () => {
   }
 
   // 获取当前医生姓名
-  const currentDoctorName = '张医生'
+  const currentDoctorName = '张艺'
 
   // 检查当前是否在值班
   let onDutyNow = false
@@ -613,7 +705,7 @@ const requests = ref([
 
 onMounted(() => {
   // 这里可以从后端获取用户信息，或从本地存储中获取
-  username.value = '医生' // 默认值，实际项目中应替换为真实用户名
+  username.value = '张艺' // 演示身份：张艺
 
   // 初始化显示的班次信息
   currentShiftDisplay.value = '全部未就诊患者'
@@ -656,7 +748,7 @@ const rejectRequest = (index) => {
 // 表格单元格样式
 const getCellClassName = ({ row, column, rowIndex, columnIndex }) => {
   // 获取当前医生的姓名
-  const currentDoctorName = '张医生' // 实际项目中应该从用户信息中获取
+  const currentDoctorName = '张艺' // 实际项目中应该从用户信息中获取
 
   // 获取当前列的属性名和值
   const prop = column.property
@@ -665,6 +757,15 @@ const getCellClassName = ({ row, column, rowIndex, columnIndex }) => {
   // 如果是时间段列，不应用任何样式
   if (prop === 'timeSlot') {
     return ''
+  }
+
+  // 检查是否是选中的单元格
+  if (
+    selectedScheduleShift.value &&
+    selectedScheduleShift.value.rowIndex === rowIndex &&
+    selectedScheduleShift.value.columnProp === prop
+  ) {
+    return 'selected-main-schedule-cell'
   }
 
   // 检查是否是当前医生的值班
@@ -689,6 +790,39 @@ const handleCellEnter = (row, column, cell, event) => {
 
 const handleCellLeave = (row, column, cell, event) => {
   cell.style.cursor = 'default'
+}
+
+// 处理主排班表单元格点击
+const handleMainScheduleCellClick = (row, column, cell, event) => {
+  // 如果点击的是时间段列，不处理
+  if (column.property === 'timeSlot') return
+
+  const currentDoctorName = '张艺'
+  const cellValue = row[column.property]
+
+  // 只有点击本人的班次才能选中
+  if (cellValue && cellValue.trim() === currentDoctorName) {
+    // 构造选中的班次信息
+    const shiftInfo = {
+      rowIndex: scheduleData.findIndex((item) => item === row),
+      columnProp: column.property,
+      timeSlot: row.timeSlot,
+      dayLabel: weekDays.find((d) => d.prop === column.property)?.label,
+    }
+
+    // 如果点击的是已选中的班次，取消选中；否则选中新班次
+    if (
+      selectedScheduleShift.value &&
+      selectedScheduleShift.value.rowIndex === shiftInfo.rowIndex &&
+      selectedScheduleShift.value.columnProp === shiftInfo.columnProp
+    ) {
+      selectedScheduleShift.value = null
+      ElMessage.info('已取消选择班次')
+    } else {
+      selectedScheduleShift.value = shiftInfo
+      ElMessage.success(`已选择：${shiftInfo.dayLabel} ${shiftInfo.timeSlot}`)
+    }
+  }
 }
 
 // 打开调整排班弹窗
@@ -729,7 +863,7 @@ const handleScheduleCellClick = (row, column, cell, event) => {
 
 // 获取微型排班表单元格样式
 const getMiniScheduleCellClass = ({ row, column }) => {
-  const currentDoctorName = '张医生'
+  const currentDoctorName = '张艺'
   const prop = column.property
 
   if (prop === 'timeSlot') {
@@ -818,11 +952,21 @@ const submitScheduleAdjust = () => {
   background-color: rgba(64, 158, 255, 0.2) !important;
   font-weight: bold;
   color: #409eff;
+  cursor: pointer;
 }
 
 /* 其他医生值班的单元格样式 */
 :deep(.other-duty-cell) {
   background-color: rgba(103, 194, 58, 0.1) !important;
+}
+
+/* 主排班表选中的单元格样式 */
+:deep(.selected-main-schedule-cell) {
+  background-color: #409eff !important;
+  color: white !important;
+  font-weight: bold;
+  border: 2px solid #1890ff !important;
+  box-shadow: 0 0 10px rgba(64, 158, 255, 0.5) !important;
 }
 
 .el-container {
@@ -951,12 +1095,19 @@ const submitScheduleAdjust = () => {
   padding: 20px;
   margin-bottom: 20px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  position: relative;
 }
 
 .schedule-section h3 {
   margin-top: 0;
   color: #303133;
   font-size: 20px;
+}
+
+.schedule-action-area {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 15px;
 }
 
 /* 下部分区域布局 */
