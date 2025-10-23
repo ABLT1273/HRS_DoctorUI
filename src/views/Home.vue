@@ -52,7 +52,12 @@
           <div class="bottom-section">
             <!-- 患者列表 -->
             <div class="patient-list">
-              <h3>患者列表</h3>
+              <div class="patient-list-header">
+                <h3>患者列表</h3>
+                <div v-if="currentShiftDisplay" class="shift-display">
+                  {{ currentShiftDisplay }}
+                </div>
+              </div>
               <div class="patient-list-controls">
                 <div class="left-controls">
                   <el-button
@@ -61,6 +66,9 @@
                     @click="toggleCurrentShift"
                   >
                     当前排班
+                  </el-button>
+                  <el-button type="success" @click="openScheduleAdjustDialog">
+                    申请调整排班
                   </el-button>
                 </div>
                 <div class="right-controls">
@@ -150,6 +158,86 @@
         </div>
       </el-main>
     </el-container>
+
+    <!-- 申请调整排班弹窗 -->
+    <el-dialog
+      v-model="scheduleAdjustDialogVisible"
+      title="申请调整排班"
+      width="700px"
+      @close="closeScheduleAdjustDialog"
+    >
+      <el-form :model="scheduleAdjustForm" label-width="100px">
+        <el-form-item label="调整类型">
+          <el-radio-group v-model="scheduleAdjustForm.type">
+            <el-radio value="leave">请假</el-radio>
+            <el-radio value="shift">调班</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <!-- 请假模式 -->
+        <template v-if="scheduleAdjustForm.type === 'leave'">
+          <el-form-item label="请假时长">
+            <el-input-number
+              v-model="scheduleAdjustForm.leaveDays"
+              :min="1"
+              :max="30"
+              placeholder="请输入请假天数"
+            />
+            <span style="margin-left: 10px">天</span>
+          </el-form-item>
+          <el-form-item label="请假原因">
+            <el-input
+              v-model="scheduleAdjustForm.leaveReason"
+              type="textarea"
+              :rows="4"
+              placeholder="请输入请假原因"
+            />
+          </el-form-item>
+        </template>
+
+        <!-- 调班模式 -->
+        <template v-if="scheduleAdjustForm.type === 'shift'">
+          <el-form-item label="选择班次">
+            <div class="mini-schedule">
+              <el-table
+                :data="miniScheduleData"
+                border
+                style="width: 100%"
+                highlight-current-row
+                @cell-click="handleScheduleCellClick"
+                :cell-class-name="getMiniScheduleCellClass"
+              >
+                <el-table-column prop="timeSlot" label="时间段" width="120" />
+                <el-table-column
+                  v-for="(day, index) in miniWeekDays"
+                  :key="index"
+                  :prop="day.prop"
+                  :label="day.label"
+                  width="80"
+                />
+              </el-table>
+            </div>
+            <div v-if="scheduleAdjustForm.selectedShift" class="selected-shift-info">
+              已选择：{{ scheduleAdjustForm.selectedShift }}
+            </div>
+          </el-form-item>
+          <el-form-item label="申请原因">
+            <el-input
+              v-model="scheduleAdjustForm.shiftReason"
+              type="textarea"
+              :rows="4"
+              placeholder="请输入调班申请原因"
+            />
+          </el-form-item>
+        </template>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="closeScheduleAdjustDialog">关闭</el-button>
+        <el-button @click="closeScheduleAdjustDialog">取消</el-button>
+        <el-button type="primary" @click="submitScheduleAdjust">提交</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -344,6 +432,119 @@ const patientList = ref([
 const showCurrentShift = ref(false)
 const searchName = ref('')
 const filteredPatientList = ref([...patientList.value]) // 初始为全部患者
+const currentShiftDisplay = ref('') // 显示当前筛选的班次信息
+
+// 调整排班弹窗相关
+const scheduleAdjustDialogVisible = ref(false)
+const scheduleAdjustForm = ref({
+  type: 'leave', // 'leave' 或 'shift'
+  leaveDays: 1,
+  leaveReason: '',
+  selectedShift: '',
+  selectedShiftData: null,
+  shiftReason: '',
+})
+
+// 微型排班表数据（用于调班选择）
+const miniWeekDays = [
+  { label: '周一', prop: 'mon' },
+  { label: '周二', prop: 'tue' },
+  { label: '周三', prop: 'wed' },
+  { label: '周四', prop: 'thu' },
+  { label: '周五', prop: 'fri' },
+  { label: '周六', prop: 'sat' },
+  { label: '周日', prop: 'sun' },
+]
+
+const miniScheduleData = [
+  {
+    timeSlot: '上午',
+    mon: '李医生',
+    tue: '张医生',
+    wed: '',
+    thu: '张医生',
+    fri: '',
+    sat: '张医生',
+    sun: '',
+  },
+  {
+    timeSlot: '下午',
+    mon: '',
+    tue: '张医生',
+    wed: '',
+    thu: '张医生',
+    fri: '',
+    sat: '',
+    sun: '张医生',
+  },
+  {
+    timeSlot: '晚上',
+    mon: '张医生',
+    tue: '',
+    wed: '',
+    thu: '',
+    fri: '张医生',
+    sat: '',
+    sun: '',
+  },
+]
+
+// 获取医生当前或最近的班次信息
+const getDoctorShiftInfo = () => {
+  const now = new Date()
+  const hour = now.getHours()
+  const today = now.toISOString().split('T')[0]
+
+  // 判断当前时间段
+  let currentPeriod = ''
+  if (hour >= 8 && hour < 14) {
+    currentPeriod = '上午'
+  } else if (hour >= 14 && hour < 19) {
+    currentPeriod = '下午'
+  } else if (hour >= 19 && hour < 21) {
+    currentPeriod = '晚上'
+  }
+
+  // 获取当前医生姓名
+  const currentDoctorName = '张医生'
+
+  // 检查当前是否在值班
+  let onDutyNow = false
+  let targetDate = today
+  let targetShift = currentPeriod
+
+  // 根据排班表检查当前时段是否值班
+  // 这里使用简化的逻辑，实际应该查询排班表数据库
+  const todayPatients = patientList.value.filter((p) => p.date === today && p.shift === currentPeriod)
+
+  if (todayPatients.length > 0 && currentPeriod) {
+    onDutyNow = true
+  }
+
+  // 如果当前不在值班，查找最近的未完成班次
+  if (!onDutyNow) {
+    // 查找所有未来的班次
+    const allShifts = patientList.value
+      .map((p) => ({ date: p.date, shift: p.shift }))
+      .filter((item, index, self) => index === self.findIndex((t) => t.date === item.date && t.shift === item.shift))
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date)
+        const shiftOrder = { 上午: 1, 下午: 2, 晚上: 3 }
+        return shiftOrder[a.shift] - shiftOrder[b.shift]
+      })
+
+    // 找到第一个未来的或当前的班次
+    for (const shift of allShifts) {
+      if (shift.date > today || (shift.date === today && !currentPeriod)) {
+        targetDate = shift.date
+        targetShift = shift.shift
+        break
+      }
+    }
+  }
+
+  return { onDutyNow, targetDate, targetShift }
+}
 
 // 切换当前排班显示
 const toggleCurrentShift = () => {
@@ -362,119 +563,21 @@ const filterPatients = () => {
 
   // 如果启用了当前排班筛选
   if (showCurrentShift.value) {
-    // 获取当前日期和时间
-    const now = new Date()
-    const hour = now.getHours()
-    const today = now.toISOString().split('T')[0] // 获取YYYY-MM-DD格式的日期
-    const tomorrow = new Date(now)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const tomorrowStr = tomorrow.toISOString().split('T')[0]
+    const shiftInfo = getDoctorShiftInfo()
+    const { onDutyNow, targetDate, targetShift } = shiftInfo
 
-    // 获取当前是周几 (0-6, 0代表周日)
-    const dayOfWeek = now.getDay()
-    // 将周日(0)转换为7，以便匹配排班表
-    const dayIndex = dayOfWeek === 0 ? 7 : dayOfWeek
+    // 筛选对应班次的患者
+    result = result.filter((patient) => patient.date === targetDate && patient.shift === targetShift)
 
-    // 判断当前时间段
-    let currentPeriod = ''
-    if (hour >= 8 && hour < 14) {
-      currentPeriod = '上午'
-    } else if (hour >= 14 && hour < 19) {
-      currentPeriod = '下午'
-    } else if (hour >= 19 && hour < 21) {
-      currentPeriod = '晚上'
-    }
-
-    // 根据排班表查找医生当前正在值班的班次
-    let onDutyNow = false
-
-    // 检查当前班次
-    if (currentPeriod) {
-      // 检查今天这个时间段医生是否值班
-      // 这里简化处理，实际应该根据排班表数据查询
-      // 假设医生在周一、周三、周五上午，周二、周四下午，周六晚上值班
-      if ((dayIndex === 1 || dayIndex === 3 || dayIndex === 5) && currentPeriod === '上午') {
-        onDutyNow = true
-      } else if ((dayIndex === 2 || dayIndex === 4) && currentPeriod === '下午') {
-        onDutyNow = true
-      } else if (dayIndex === 6 && currentPeriod === '晚上') {
-        onDutyNow = true
-      }
-    }
-
-    // 如果当前正在值班，则筛选当前班次的患者
+    // 更新显示的班次信息
     if (onDutyNow) {
-      result = result.filter((patient) => patient.date === today && patient.shift === currentPeriod)
+      currentShiftDisplay.value = `当前班次：${targetDate} ${targetShift}`
     } else {
-      // 如果当前不在值班，查找最近的值班班次
-
-      // 简化处理，假设医生在10月20日和10月21日都有值班
-      // 实际应该根据排班表查询
-
-      // 10月20日值班
-      if (today === '2025-10-20') {
-        // 10月20日是周五，医生上午值班
-        // 根据当前时间判断是否已过上午班次
-        if (hour < 8) {
-          // 早上8点前，显示当天上午班次
-          result = result.filter(
-            (patient) => patient.date === '2025-10-20' && patient.shift === '上午',
-          )
-        } else if (hour >= 8 && hour < 14) {
-          // 上午班次时间内，但医生不值班，查找下一个班次
-          result = result.filter(
-            (patient) => patient.date === '2025-10-21' && patient.shift === '晚上',
-          )
-        } else {
-          // 已过上午班次，显示下一个班次
-          result = result.filter(
-            (patient) => patient.date === '2025-10-21' && patient.shift === '晚上',
-          )
-        }
-      }
-      // 10月21日值班
-      else if (today === '2025-10-21') {
-        // 10月21日是周六，医生晚上值班
-        // 根据当前时间判断是否已过晚上班次
-        if (hour < 19) {
-          // 晚上7点前，显示当天晚上班次
-          result = result.filter(
-            (patient) => patient.date === '2025-10-21' && patient.shift === '晚上',
-          )
-        } else if (hour >= 19 && hour < 21) {
-          // 晚上班次时间内，但医生不值班，查找下一个班次
-          // 这里简化处理，假设没有更多班次，显示空列表
-          result = []
-        } else {
-          // 已过晚上班次，显示空列表
-          result = []
-        }
-      }
-      // 如果当前日期不在20日或21日，查找最近的一个值班日
-      else {
-        // 比较当前日期与20日、21日，选择最近的
-        const currentDate = new Date(today)
-        const date20 = new Date('2025-10-20')
-        const date21 = new Date('2025-10-21')
-
-        // 如果20日还未过，选择20日的上午班次
-        if (currentDate < date20) {
-          result = result.filter(
-            (patient) => patient.date === '2025-10-20' && patient.shift === '上午',
-          )
-        }
-        // 如果20日已过，21日还未过，选择21日的晚上班次
-        else if (currentDate >= date20 && currentDate < date21) {
-          result = result.filter(
-            (patient) => patient.date === '2025-10-21' && patient.shift === '晚上',
-          )
-        }
-        // 如果两个日期都已过，显示空列表
-        else {
-          result = []
-        }
-      }
+      currentShiftDisplay.value = `最近班次：${targetDate} ${targetShift}`
     }
+  } else {
+    // 未点击当前排班按钮，显示所有未就诊患者
+    currentShiftDisplay.value = '全部未就诊患者'
   }
 
   // 如果有搜索关键词，按姓名筛选
@@ -511,6 +614,9 @@ const requests = ref([
 onMounted(() => {
   // 这里可以从后端获取用户信息，或从本地存储中获取
   username.value = '医生' // 默认值，实际项目中应替换为真实用户名
+
+  // 初始化显示的班次信息
+  currentShiftDisplay.value = '全部未就诊患者'
 
   // 实际项目中，这里应该从API获取数据
 })
@@ -583,6 +689,112 @@ const handleCellEnter = (row, column, cell, event) => {
 
 const handleCellLeave = (row, column, cell, event) => {
   cell.style.cursor = 'default'
+}
+
+// 打开调整排班弹窗
+const openScheduleAdjustDialog = () => {
+  scheduleAdjustDialogVisible.value = true
+}
+
+// 关闭调整排班弹窗
+const closeScheduleAdjustDialog = () => {
+  scheduleAdjustDialogVisible.value = false
+  // 重置表单
+  scheduleAdjustForm.value = {
+    type: 'leave',
+    leaveDays: 1,
+    leaveReason: '',
+    selectedShift: '',
+    selectedShiftData: null,
+    shiftReason: '',
+  }
+}
+
+// 处理排班表格单元格点击
+const handleScheduleCellClick = (row, column, cell, event) => {
+  // 如果点击的是时间段列，不处理
+  if (column.property === 'timeSlot') return
+
+  const dayLabel = miniWeekDays.find((d) => d.prop === column.property)?.label
+  const timeSlot = row.timeSlot
+
+  if (dayLabel && timeSlot) {
+    scheduleAdjustForm.value.selectedShift = `${dayLabel} ${timeSlot}`
+    scheduleAdjustForm.value.selectedShiftData = {
+      day: column.property,
+      timeSlot: timeSlot,
+    }
+  }
+}
+
+// 获取微型排班表单元格样式
+const getMiniScheduleCellClass = ({ row, column }) => {
+  const currentDoctorName = '张医生'
+  const prop = column.property
+
+  if (prop === 'timeSlot') {
+    return ''
+  }
+
+  const cellValue = row[prop]
+
+  // 检查是否是已选择的单元格
+  if (
+    scheduleAdjustForm.value.selectedShiftData &&
+    scheduleAdjustForm.value.selectedShiftData.day === prop &&
+    scheduleAdjustForm.value.selectedShiftData.timeSlot === row.timeSlot
+  ) {
+    return 'selected-schedule-cell'
+  }
+
+  // 检查是否是当前医生的值班
+  if (cellValue && cellValue.trim() === currentDoctorName) {
+    return 'doctor-duty-cell'
+  }
+
+  // 如果不是当前医生但有其他医生值班
+  if (cellValue && cellValue.trim()) {
+    return 'other-duty-cell'
+  }
+
+  // 空闲时段，可点击
+  return 'available-schedule-cell'
+}
+
+// 提交调整排班申请
+const submitScheduleAdjust = () => {
+  if (scheduleAdjustForm.value.type === 'leave') {
+    // 验证请假表单
+    if (!scheduleAdjustForm.value.leaveDays || scheduleAdjustForm.value.leaveDays < 1) {
+      ElMessage.warning('请输入有效的请假天数')
+      return
+    }
+    if (!scheduleAdjustForm.value.leaveReason.trim()) {
+      ElMessage.warning('请填写请假原因')
+      return
+    }
+
+    ElMessage.success(
+      `请假申请已提交：${scheduleAdjustForm.value.leaveDays}天，原因：${scheduleAdjustForm.value.leaveReason}`,
+    )
+  } else if (scheduleAdjustForm.value.type === 'shift') {
+    // 验证调班表单
+    if (!scheduleAdjustForm.value.selectedShift) {
+      ElMessage.warning('请选择目标班次')
+      return
+    }
+    if (!scheduleAdjustForm.value.shiftReason.trim()) {
+      ElMessage.warning('请填写调班申请原因')
+      return
+    }
+
+    ElMessage.success(
+      `调班申请已提交：目标班次 ${scheduleAdjustForm.value.selectedShift}，原因：${scheduleAdjustForm.value.shiftReason}`,
+    )
+  }
+
+  // 实际项目中应该调用API提交申请
+  closeScheduleAdjustDialog()
 }
 </script>
 
@@ -766,10 +978,27 @@ const handleCellLeave = (row, column, cell, event) => {
   flex-direction: column;
 }
 
-.patient-list h3 {
-  margin-top: 0;
+.patient-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.patient-list-header h3 {
+  margin: 0;
   color: #303133;
   font-size: 20px;
+}
+
+.shift-display {
+  padding: 8px 16px;
+  background-color: #ecf5ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 4px;
+  color: #409eff;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 /* 患者列表控制按钮区域样式 */
@@ -905,5 +1134,43 @@ const handleCellLeave = (row, column, cell, event) => {
 :deep(.el-table th.el-table__cell.is-hover-column) {
   background-color: #cce9ff !important; /* 表头颜色略有不同 */
   color: #1890ff;
+}
+
+/* 调整排班弹窗样式 */
+.mini-schedule {
+  margin-bottom: 15px;
+}
+
+.mini-schedule :deep(.el-table__cell) {
+  padding: 8px 0;
+  text-align: center;
+  cursor: pointer;
+}
+
+.selected-shift-info {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f0f9ff;
+  border: 1px solid #91d5ff;
+  border-radius: 4px;
+  color: #1890ff;
+  font-size: 14px;
+}
+
+/* 已选择的排班单元格 */
+:deep(.selected-schedule-cell) {
+  background-color: #1890ff !important;
+  color: white !important;
+  font-weight: bold;
+}
+
+/* 可用的排班单元格 */
+:deep(.available-schedule-cell) {
+  background-color: #f0f9ff !important;
+  cursor: pointer;
+}
+
+:deep(.available-schedule-cell:hover) {
+  background-color: #bae7ff !important;
 }
 </style>
