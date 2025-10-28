@@ -33,11 +33,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
+import { login } from '@/services/api'
+import type { FormInstance } from 'element-plus'
 
 const router = useRouter()
 
@@ -50,7 +52,7 @@ const loginForm = reactive({
 // 表单验证规则
 const loginRules = {
   username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { required: true, message: '请输入医生ID', trigger: 'blur' },
     { min: 3, max: 15, message: '长度在 3 到 15 个字符', trigger: 'blur' },
   ],
   password: [
@@ -60,7 +62,7 @@ const loginRules = {
 }
 
 // 表单引用
-const loginFormRef = ref(null)
+const loginFormRef = ref<FormInstance>()
 
 // 控制按钮加载状态
 const loading = ref(false)
@@ -68,40 +70,38 @@ const loading = ref(false)
 // 登录处理函数
 const handleLogin = () => {
   // 表单验证
-  loginFormRef.value.validate(async (valid) => {
+  loginFormRef.value?.validate(async (valid) => {
     if (!valid) return // 验证失败，停止执行
 
     loading.value = true // 开启加载状态
 
     try {
-      // 模拟登录请求 - 在实际项目中替换为真实的API调用
-      setTimeout(() => {
-        loading.value = false
+      // 调用登录 API
+      const response = await login({
+        docID: loginForm.username,
+        pass: loginForm.password,
+      })
 
-        // 简单的模拟验证逻辑
-        if (loginForm.username === 'admin' && loginForm.password === '123456') {
-          // 登录成功：保存 Token 等信息
-          localStorage.setItem('token', 'mock-token-12345')
-          ElMessage.success('登录成功')
-          // 跳转到主页
-          router.push('/home')
-        } else {
-          // 登录失败：提示用户
-          ElMessage.error('用户名或密码错误')
-        }
-      }, 1000)
-    } catch (error) {
-      loading.value = false
-      // 处理请求错误，如网络错误、服务器无响应等
-      ElMessage.error('请求失败，请检查网络或联系管理员')
+      // 登录成功：保存 Token 和医生ID
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('doctorId', response.doctorId)
+      ElMessage.success('登录成功')
+
+      // 跳转到主页
+      router.push('/home')
+    } catch (error: any) {
+      // 登录失败
+      ElMessage.error(error.message || '登录失败，请检查账号密码')
       console.error('Login Error:', error)
+    } finally {
+      loading.value = false
     }
   })
 }
 
 // 重置表单
 const resetForm = () => {
-  loginFormRef.value.resetFields()
+  loginFormRef.value?.resetFields()
 }
 </script>
 
