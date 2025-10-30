@@ -20,9 +20,9 @@ import type {
 
 // 创建 axios 实例
 const apiClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api/doctor',
-  timeout: 30000,
-  withCredentials: true,  // 允许发送认证信息
+  baseURL: '/doctor',
+  timeout: 3000,
+  withCredentials: true, // 允许发送认证信息
   headers: {
     'Content-Type': 'application/json',
   },
@@ -41,13 +41,12 @@ apiClient.interceptors.request.use(
   (error: AxiosError) => {
     console.error('请求错误:', error)
     return Promise.reject(error)
-  }
+  },
 )
 
 // 响应拦截器
 apiClient.interceptors.response.use(
   (response) => {
-    // 直接返回 response 数据
     return response
   },
   (error: AxiosError) => {
@@ -57,9 +56,17 @@ apiClient.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 401:
-          ElMessage.error('未授权，请重新登录')
-          localStorage.removeItem('token')
-          router.push('/login')
+          {
+            // 清除本地存储
+            localStorage.removeItem('token')
+            localStorage.removeItem('doctorAccount')
+            // 判断是否是登录请求
+            const isLoginRequest = (error.config as any)?.isLogin
+            if (!isLoginRequest) {
+              ElMessage.error('未授权，请重新登录')
+              router.push('/login')
+            }
+          }
           break
         case 403:
           ElMessage.error('无权访问')
@@ -80,7 +87,7 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error)
-  }
+  },
 )
 
 // ============== API 接口函数 ==============
@@ -90,7 +97,7 @@ apiClient.interceptors.response.use(
  * POST /doctor/login
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
-  const response = await apiClient.post<ApiResponse<LoginResponse>>('/doctor/login', credentials)
+  const response = await apiClient.post<ApiResponse<LoginResponse>>('/login', credentials)
   if (response.data.code === 200 && response.data.data) {
     return response.data.data
   }
@@ -101,9 +108,9 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
  * 获取排班信息
  * GET /doctor/shifts
  */
-export async function getShifts(docID?: string): Promise<ShiftsResponse> {
-  const response = await apiClient.get<ShiftsResponse>('/doctor/shifts', {
-    params: { docID },
+export async function getShifts(docId?: string): Promise<ShiftsResponse> {
+  const response = await apiClient.get<ShiftsResponse>('/shifts', {
+    params: { docId },
   })
   return response.data
 }
@@ -112,9 +119,9 @@ export async function getShifts(docID?: string): Promise<ShiftsResponse> {
  * 获取患者列表
  * GET /doctor/patients
  */
-export async function getPatients(docID: string): Promise<PatientsResponse> {
-  const response = await apiClient.get<PatientsResponse>('/doctor/patients', {
-    params: { docID },
+export async function getPatients(docId: string): Promise<PatientsResponse> {
+  const response = await apiClient.get<PatientsResponse>('/patients', {
+    params: { docId },
   })
   return response.data
 }
@@ -125,14 +132,11 @@ export async function getPatients(docID: string): Promise<PatientsResponse> {
  */
 export async function getRegisterRecords(
   registerId: string,
-  docID?: string
+  docId?: string,
 ): Promise<RegisterRecordsResponse> {
-  const response = await apiClient.get<RegisterRecordsResponse>(
-    `/doctor/register/${registerId}`,
-    {
-      params: { docID },
-    }
-  )
+  const response = await apiClient.get<RegisterRecordsResponse>(`/register/${registerId}`, {
+    params: { docId },
+  })
   return response.data
 }
 
@@ -140,10 +144,8 @@ export async function getRegisterRecords(
  * 提交加号结果
  * POST /doctor/add_number_result
  */
-export async function submitAddNumberResult(
-  request: AddNumberResultRequest
-): Promise<ApiResponse> {
-  const response = await apiClient.post<ApiResponse>('/doctor/add_number_result', request)
+export async function submitAddNumberResult(request: AddNumberResultRequest): Promise<ApiResponse> {
+  const response = await apiClient.post<ApiResponse>('/add_number_result', request)
   return response.data
 }
 
@@ -151,8 +153,8 @@ export async function submitAddNumberResult(
  * 获取医生个人信息
  * GET /doctor/{docID}/profile
  */
-export async function getDoctorProfile(docID: string): Promise<DoctorProfileResponse> {
-  const response = await apiClient.get<DoctorProfileResponse>(`/doctor/${docID}/profile`)
+export async function getDoctorProfile(docId: string): Promise<DoctorProfileResponse> {
+  const response = await apiClient.get<DoctorProfileResponse>(`/${docId}/profile`)
   return response.data
 }
 
@@ -161,9 +163,9 @@ export async function getDoctorProfile(docID: string): Promise<DoctorProfileResp
  * POST /doctor/schedule_change_request
  */
 export async function submitScheduleChangeRequest(
-  request: ScheduleChangeRequest
+  request: ScheduleChangeRequest,
 ): Promise<ApiResponse> {
-  const response = await apiClient.post<ApiResponse>('/doctor/schedule_change_request', request)
+  const response = await apiClient.post<ApiResponse>('/schedule_change_request', request)
   return response.data
 }
 
@@ -172,7 +174,7 @@ export async function submitScheduleChangeRequest(
  * POST /doctor/patient/status
  */
 export async function updatePatientStatus(request: PatientStatusRequest): Promise<ApiResponse> {
-  const response = await apiClient.post<ApiResponse>('/doctor/patient/status', request)
+  const response = await apiClient.post<ApiResponse>('/patient/status', request)
   return response.data
 }
 
@@ -184,10 +186,10 @@ export async function updatePatientStatus(request: PatientStatusRequest): Promis
 function createSSEConnection<T>(
   url: string,
   onMessage: SSEMessageHandler<T>,
-  onError?: SSEErrorHandler
+  onError?: SSEErrorHandler,
 ): EventSource {
   const token = localStorage.getItem('token')
-  const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api/doctor'
+  const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/doctor'
 
   // 构建完整 URL 并添加 token
   const fullUrl = `${baseURL}${url}${url.includes('?') ? '&' : '?'}token=${token}`
@@ -221,11 +223,11 @@ function createSSEConnection<T>(
  * GET /doctor/add_number_notify_doctor
  */
 export function subscribeAddNumberNotifications(
-  docID: string | undefined,
+  docId: string | undefined,
   onMessage: SSEMessageHandler<AddNumberApplicationsResponse>,
-  onError?: SSEErrorHandler
+  onError?: SSEErrorHandler,
 ): EventSource {
-  const url = docID ? `/doctor/add_number_notify_doctor?docID=${docID}` : '/doctor/add_number_notify_doctor'
+  const url = docId ? `/add_number_notify_doctor?docId=${docId}` : '/add_number_notify_doctor'
   return createSSEConnection<AddNumberApplicationsResponse>(url, onMessage, onError)
 }
 
@@ -234,14 +236,14 @@ export function subscribeAddNumberNotifications(
  * GET /doctor/notifications
  */
 export function subscribeNotifications(
-  docID: string,
+  docId: string,
   onMessage: SSEMessageHandler<NotificationsResponse>,
-  onError?: SSEErrorHandler
+  onError?: SSEErrorHandler,
 ): EventSource {
   return createSSEConnection<NotificationsResponse>(
-    `/doctor/notifications?docID=${docID}`,
+    `/notifications?docId=${docId}`,
     onMessage,
-    onError
+    onError,
   )
 }
 

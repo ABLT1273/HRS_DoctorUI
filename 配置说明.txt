@@ -4,8 +4,8 @@
 
 ### 服务器配置
 - 服务端口：8081
-- 上下文路径：/api/doctor
-- 完整基础URL：http://localhost:8081/api/doctor
+- 上下文路径：/doctor
+- 完整基础URL：http://localhost:8081/doctor
 
 ### 数据库配置
 - 数据库类型：PostgreSQL
@@ -53,7 +53,7 @@ spring.web.cors.max-age=3600
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8081/api/doctor',
+  baseURL: 'http://localhost:8081/doctor',
   withCredentials: true,  // 允许发送认证信息
   headers: {
     'Content-Type': 'application/json'
@@ -66,7 +66,7 @@ const api = axios.create({
 2. API请求需要设置withCredentials: true
 3. 所有请求都需要添加Content-Type头部
 4. 预检请求（OPTIONS）会被缓存1小时
-5. 确保请求URL使用正确的上下文路径（/api/doctor）
+5. 确保请求URL使用正确的上下文路径（/doctor）
 
 ## 6. 安全建议
 1. 生产环境部署时修改数据库密码

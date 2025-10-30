@@ -157,7 +157,7 @@
             <h2>个人信息</h2>
             <el-descriptions :column="2" border>
               <el-descriptions-item label="姓名">{{ username }}</el-descriptions-item>
-              <el-descriptions-item label="ID">123456</el-descriptions-item>
+              <el-descriptions-item label="账号">123456</el-descriptions-item>
               <el-descriptions-item label="科室">内科</el-descriptions-item>
               <el-descriptions-item label="职称">主治医师</el-descriptions-item>
             </el-descriptions>
@@ -714,8 +714,9 @@ onMounted(() => {
 })
 
 const logout = () => {
-  // 清除token
+  // 清除token和医生账号
   localStorage.removeItem('token')
+  localStorage.removeItem('doctorAccount')
   ElMessage.success('已成功退出登录')
   // 跳转到登录页
   router.push('/login')

@@ -38,7 +38,7 @@ import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import { login } from '@/services/api'
+import apiClient, { login } from '@/services/api'
 import type { FormInstance } from 'element-plus'
 
 const router = useRouter()
@@ -52,12 +52,12 @@ const loginForm = reactive({
 // 表单验证规则
 const loginRules = {
   username: [
-    { required: true, message: '请输入医生ID', trigger: 'blur' },
+    { required: true, message: '请输入医生账号', trigger: 'blur' },
     { min: 3, max: 15, message: '长度在 3 到 15 个字符', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '长度在 6 到 20 个字符', trigger: 'blur' },
+    { min: 6, max: 40, message: '长度在 6 到 40 个字符', trigger: 'blur' },
   ],
 }
 
@@ -69,29 +69,39 @@ const loading = ref(false)
 
 // 登录处理函数
 const handleLogin = () => {
-  // 表单验证
   loginFormRef.value?.validate(async (valid) => {
-    if (!valid) return // 验证失败，停止执行
+    if (!valid) return
 
-    loading.value = true // 开启加载状态
+    loading.value = true
 
     try {
-      // 调用登录 API
-      const response = await login({
-        docID: loginForm.username,
-        pass: loginForm.password,
-      })
+      // 调用登录 API，添加特殊标记避免全局拦截
+      const response = await apiClient.post(
+        '/login',
+        {
+          docAccount: loginForm.username,
+          pass: loginForm.password,
+        },
+        {
+          // 添加自定义配置，告诉拦截器这是登录请求
+          isLogin: true,
+        } as any,
+      )
 
-      // 登录成功：保存 Token 和医生ID
-      localStorage.setItem('token', response.token)
-      localStorage.setItem('doctorId', response.doctorId)
+      // 登录成功处理
+      localStorage.setItem('token', response.data.token)
+      localStorage.setItem('doctorId', response.data.doctorId)
+      localStorage.setItem('doctorAccount', loginForm.username) // 修复：应该是 doctorAccount
+
       ElMessage.success('登录成功')
-
-      // 跳转到主页
       router.push('/home')
     } catch (error: any) {
-      // 登录失败
-      ElMessage.error(error.message || '登录失败，请检查账号密码')
+      // 现在这里能捕获到 401 错误了
+      if (error.response?.status === 401) {
+        ElMessage.error('用户名或密码错误')
+      } else {
+        ElMessage.error(error.message || '登录失败')
+      }
       console.error('Login Error:', error)
     } finally {
       loading.value = false

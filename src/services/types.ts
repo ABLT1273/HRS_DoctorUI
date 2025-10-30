@@ -7,7 +7,7 @@ export interface ApiResponse<T = any> {
 
 // 登录
 export interface LoginRequest {
-  docID: string
+  docAccount: string
   pass: string
 }
 
@@ -90,7 +90,7 @@ export interface NotificationsResponse {
 
 // 医生个人信息
 export interface DoctorProfile {
-  doctorId: string
+  doctorAccount: string
   name: string
   department: string
   clinicId?: string

@@ -85,7 +85,7 @@ export function useDoctorData() {
       },
       (error) => {
         console.error('加号申请SSE错误:', error)
-      }
+      },
     )
   }
 
@@ -100,7 +100,7 @@ export function useDoctorData() {
       },
       (error) => {
         console.error('系统通知SSE错误:', error)
-      }
+      },
     )
   }
 
