@@ -1,5 +1,5 @@
 // API 响应类型定义
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   code: number
   msg: string
   data?: T
@@ -18,6 +18,7 @@ export interface LoginResponse {
 
 // 排班
 export interface Shift {
+  scheduleId?: string
   date: string // ISO date format
   docName: string
   timePeriod: number // 时间段

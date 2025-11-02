@@ -34,11 +34,12 @@
 </template>
 
 <script setup lang="ts">
+import { isAxiosError } from 'axios'
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import apiClient, { login } from '@/services/api'
+import { login } from '@/services/api'
 import type { FormInstance } from 'element-plus'
 
 const router = useRouter()
@@ -75,32 +76,25 @@ const handleLogin = () => {
     loading.value = true
 
     try {
-      // 调用登录 API，添加特殊标记避免全局拦截
-      const response = await apiClient.post(
-        '/login',
-        {
-          docAccount: loginForm.username,
-          pass: loginForm.password,
-        },
-        {
-          // 添加自定义配置，告诉拦截器这是登录请求
-          isLogin: true,
-        } as any,
-      )
+      const response = await login({
+        docAccount: loginForm.username,
+        pass: loginForm.password,
+      })
 
       // 登录成功处理
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('doctorId', response.data.doctorId)
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('doctorId', response.doctorId)
       localStorage.setItem('doctorAccount', loginForm.username) // 修复：应该是 doctorAccount
 
       ElMessage.success('登录成功')
       router.push('/home')
-    } catch (error: any) {
-      // 现在这里能捕获到 401 错误了
-      if (error.response?.status === 401) {
+    } catch (error: unknown) {
+      if (isAxiosError(error) && error.response?.status === 401) {
         ElMessage.error('用户名或密码错误')
-      } else {
+      } else if (error instanceof Error) {
         ElMessage.error(error.message || '登录失败')
+      } else {
+        ElMessage.error('登录失败')
       }
       console.error('Login Error:', error)
     } finally {

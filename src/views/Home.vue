@@ -18,10 +18,10 @@
           </el-menu>
         </div>
       </el-header>
-      <el-main>
+      <el-main v-loading="loading">
         <div v-if="activeTab === 'duty'" class="tab-content">
           <div class="welcome-message">
-            <h2>欢迎，{{ username }}！</h2>
+            <h2>欢迎，{{ displayName }}！</h2>
             <p>这里是您的工作台</p>
           </div>
 
@@ -92,7 +92,6 @@
                 :data="filteredPatientList"
                 border
                 style="width: 100%; margin-top: 10px"
-                :cell-class-name="getCellClassName"
                 @cell-mouse-enter="handleCellEnter"
                 @cell-mouse-leave="handleCellLeave"
               >
@@ -117,36 +116,50 @@
             <div class="notification-section">
               <el-tabs v-model="activeNotificationTab">
                 <el-tab-pane label="系统通知" name="notification">
-                  <div class="notification-list">
-                    <div
-                      v-for="(item, index) in notifications"
-                      :key="index"
-                      class="notification-item"
-                    >
+                  <div v-if="notificationList.length" class="notification-list">
+                    <div v-for="item in notificationList" :key="item.id" class="notification-item">
                       <div class="notification-title">{{ item.title }}</div>
                       <div class="notification-content">{{ item.content }}</div>
                       <div class="notification-time">{{ item.time }}</div>
                     </div>
                   </div>
+                  <el-empty v-else description="暂无系统通知" />
                 </el-tab-pane>
                 <el-tab-pane label="加号申请" name="request">
-                  <div class="request-list">
-                    <div v-for="(item, index) in requests" :key="index" class="request-item">
+                  <div v-if="requestEntries.length" class="request-list">
+                    <div
+                      v-for="request in requestEntries"
+                      :key="request.raw.addId"
+                      class="request-item"
+                    >
                       <div class="request-info">
-                        <span class="request-name">{{ item.patientName }}</span>
-                        <span class="request-time">{{ item.requestTime }}</span>
+                        <span class="request-name">{{ request.display.patientName }}</span>
+                        <span class="request-time">{{ request.display.requestTime }}</span>
                       </div>
-                      <div class="request-reason">{{ item.reason }}</div>
+                      <div class="request-reason">
+                        目标班次：{{ request.display.targetDate }} {{ request.display.targetShift
+                        }}<br />
+                        原因：{{ request.display.reason }}
+                      </div>
                       <div class="request-action">
-                        <el-button size="small" type="success" @click="approveRequest(index)"
-                          >同意</el-button
+                        <el-button
+                          size="small"
+                          type="success"
+                          @click="decideAddNumber(request.raw, true)"
                         >
-                        <el-button size="small" type="danger" @click="rejectRequest(index)"
-                          >拒绝</el-button
+                          同意
+                        </el-button>
+                        <el-button
+                          size="small"
+                          type="danger"
+                          @click="decideAddNumber(request.raw, false)"
                         >
+                          拒绝
+                        </el-button>
                       </div>
                     </div>
                   </div>
+                  <el-empty v-else description="暂无加号申请" />
                 </el-tab-pane>
               </el-tabs>
             </div>
@@ -156,10 +169,13 @@
           <div class="personal-info">
             <h2>个人信息</h2>
             <el-descriptions :column="2" border>
-              <el-descriptions-item label="姓名">{{ username }}</el-descriptions-item>
-              <el-descriptions-item label="账号">123456</el-descriptions-item>
-              <el-descriptions-item label="科室">内科</el-descriptions-item>
-              <el-descriptions-item label="职称">主治医师</el-descriptions-item>
+              <el-descriptions-item label="姓名">{{ displayName }}</el-descriptions-item>
+              <el-descriptions-item label="账号">{{ doctorAccountDisplay }}</el-descriptions-item>
+              <el-descriptions-item label="科室">{{ doctorDepartment }}</el-descriptions-item>
+              <el-descriptions-item label="职称">{{ doctorTitle }}</el-descriptions-item>
+              <el-descriptions-item v-if="doctorClinic" label="诊室">{{
+                doctorClinic
+              }}</el-descriptions-item>
             </el-descriptions>
           </div>
         </div>
@@ -224,8 +240,8 @@
                 />
               </el-table>
             </div>
-            <div v-if="scheduleAdjustForm.selectedShift" class="selected-shift-info">
-              已选择：{{ scheduleAdjustForm.selectedShift }}
+            <div v-if="scheduleAdjustForm.selectedShiftLabel" class="selected-shift-info">
+              已选择：{{ scheduleAdjustForm.selectedShiftLabel }}
             </div>
           </el-form-item>
           <el-form-item label="申请原因">
@@ -244,693 +260,681 @@
         <el-button type="primary" @click="submitScheduleAdjust">提交</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="registerRecordsDialogVisible"
+      :title="`挂号记录 - ${registerRecordPatientName || ''}`"
+      width="700px"
+      @close="closeRegisterRecordsDialog"
+    >
+      <template v-if="registerRecords.length">
+        <el-table :data="registerRecords" style="width: 100%" v-loading="registerRecordsLoading">
+          <el-table-column prop="registerId" label="挂号号" width="160" />
+          <el-table-column prop="registerTime" label="挂号时间">
+            <template #default="{ row }">
+              {{ formatRecordTime(row.registerTime) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="department" label="科室" width="120">
+            <template #default="{ row }">{{ row.department || '—' }}</template>
+          </el-table-column>
+          <el-table-column prop="scheduleDate" label="就诊日期" width="140">
+            <template #default="{ row }">{{ row.scheduleDate || '—' }}</template>
+          </el-table-column>
+        </el-table>
+      </template>
+      <template v-else>
+        <el-empty v-if="!registerRecordsLoading" description="暂无挂号记录" />
+        <div v-else class="register-loading">正在加载...</div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import {
+  transformScheduleToWeekTable,
+  transformPatient,
+  transformAddNumberRequest,
+  transformNotification,
+  formatDateTime,
+  TIME_PERIOD_MAP,
+  TIME_PERIOD_DETAIL_MAP,
+  TIME_PERIOD_REVERSE_MAP,
+  type FrontendPatient,
+  type FrontendAddRequest,
+  type FrontendNotification,
+  type WeekScheduleRow,
+} from '@/utils/dataTransform'
+import {
+  submitScheduleChangeRequest,
+  submitAddNumberResult,
+  updatePatientStatus,
+  getRegisterRecords,
+} from '@/services/api'
+import { useDoctorData } from '@/composables/useDoctorData'
+import type {
+  AddNumberApplication,
+  Patient,
+  RegisterRecord,
+  ScheduleChangeRequest,
+  Shift,
+} from '@/services/types'
+
+interface PatientEntry {
+  display: FrontendPatient
+  raw: Patient
+}
+
+interface RequestEntry {
+  display: FrontendAddRequest
+  raw: AddNumberApplication
+}
+
+interface SelectedScheduleShift {
+  rowIndex: number
+  columnProp: string
+  timeSlot: string
+  dayLabel: string
+  date: string
+  timePeriod: number
+  shift?: Shift
+}
+
+type MiniScheduleRow = {
+  timeSlot: string
+  [key: string]: string
+}
+
+defineOptions({ name: 'DoctorHome' })
 
 const router = useRouter()
-const username = ref('')
-const activeTab = ref('duty')
-const activeNotificationTab = ref('notification')
+const activeTab = ref<'duty' | 'personal'>('duty')
+const activeNotificationTab = ref<'notification' | 'request'>('notification')
 
-// 排班表数据
-const weekDays = [
-  { label: '第一周周一', prop: 'week1_mon' },
-  { label: '第一周周二', prop: 'week1_tue' },
-  { label: '第一周周三', prop: 'week1_wed' },
-  { label: '第一周周四', prop: 'week1_thu' },
-  { label: '第一周周五', prop: 'week1_fri' },
-  { label: '第二周周一', prop: 'week2_mon' },
-  { label: '第二周周二', prop: 'week2_tue' },
-  { label: '第二周周三', prop: 'week2_wed' },
-  { label: '第二周周四', prop: 'week2_thu' },
-  { label: '第二周周五', prop: 'week2_fri' },
-  { label: '第三周周一', prop: 'week3_mon' },
-  { label: '第三周周二', prop: 'week3_tue' },
-  { label: '第三周周三', prop: 'week3_wed' },
-  { label: '第三周周四', prop: 'week3_thu' },
-  { label: '第三周周五', prop: 'week3_fri' },
-  { label: '第三周周六', prop: 'week3_sat' },
-  { label: '第三周周日', prop: 'week3_sun' },
-]
-const scheduleData = [
-  {
-    timeSlot: '上午 8:00-12:00',
-    week1_mon: '李医生',
-    week1_tue: '张艺',
-    week1_wed: '',
-    week1_thu: '张艺',
-    week1_fri: '',
-    week2_mon: '张艺',
-    week2_tue: '王医生',
-    week2_wed: '',
-    week2_thu: '张艺',
-    week2_fri: '',
-    week3_mon: '张艺',
-    week3_tue: '',
-    week3_wed: '张艺',
-    week3_thu: '',
-    week3_fri: '张艺',
-    week3_sat: '张艺',
-    week3_sun: '',
-  },
-  {
-    timeSlot: '下午 14:00-18:00',
-    week1_mon: '',
-    week1_tue: '张艺',
-    week1_wed: '',
-    week1_thu: '张艺',
-    week1_fri: '',
-    week2_mon: '张艺',
-    week2_tue: '',
-    week2_wed: '张艺',
-    week2_thu: '',
-    week2_fri: '张艺',
-    week3_mon: '',
-    week3_tue: '张艺',
-    week3_wed: '',
-    week3_thu: '张艺',
-    week3_fri: '',
-    week3_sat: '',
-    week3_sun: '张艺',
-  },
-  {
-    timeSlot: '晚上 19:00-21:00',
-    week1_mon: '张艺',
-    week1_tue: '',
-    week1_wed: '',
-    week1_thu: '',
-    week1_fri: '张艺',
-    week2_mon: '',
-    week2_tue: '',
-    week2_wed: '',
-    week2_thu: '张艺',
-    week2_fri: '',
-    week3_mon: '',
-    week3_tue: '',
-    week3_wed: '张艺',
-    week3_thu: '',
-    week3_fri: '',
-    week3_sat: '',
-    week3_sun: '',
-  },
-]
+const {
+  doctorId,
+  doctorProfile,
+  shifts,
+  patients,
+  addNumberRequests,
+  notifications,
+  loading,
+  error,
+  loadPatients,
+  loadShifts,
+  cleanup,
+} = useDoctorData()
 
-// 患者列表数据 - 从10/23开始的两周测试数据
-const patientList = ref([
-  // 10月23日患者 (周三)
-  {
-    name: '张三',
-    gender: '男',
-    age: 35,
-    department: '内科',
-    date: '2025-10-23',
-    shift: '上午',
-  },
-  {
-    name: '李四',
-    gender: '女',
-    age: 28,
-    department: '内科',
-    date: '2025-10-23',
-    shift: '下午',
-  },
-  // 10月24日患者 (周四)
-  {
-    name: '王五',
-    gender: '男',
-    age: 42,
-    department: '内科',
-    date: '2025-10-24',
-    shift: '上午',
-  },
-  {
-    name: '赵六',
-    gender: '女',
-    age: 31,
-    department: '外科',
-    date: '2025-10-24',
-    shift: '下午',
-  },
-  // 10月25日患者 (周五)
-  {
-    name: '钱七',
-    gender: '男',
-    age: 55,
-    department: '内科',
-    date: '2025-10-25',
-    shift: '上午',
-  },
-  {
-    name: '孙八',
-    gender: '女',
-    age: 40,
-    department: '内科',
-    date: '2025-10-25',
-    shift: '晚上',
-  },
-  // 10月26日患者 (周六)
-  {
-    name: '周九',
-    gender: '男',
-    age: 33,
-    department: '内科',
-    date: '2025-10-26',
-    shift: '上午',
-  },
-  // 10月27日患者 (周日)
-  {
-    name: '吴十',
-    gender: '女',
-    age: 45,
-    department: '外科',
-    date: '2025-10-27',
-    shift: '下午',
-  },
-  // 10月28日患者 (周一)
-  {
-    name: '郑十一',
-    gender: '男',
-    age: 38,
-    department: '内科',
-    date: '2025-10-28',
-    shift: '上午',
-  },
-  {
-    name: '王十二',
-    gender: '女',
-    age: 29,
-    department: '内科',
-    date: '2025-10-28',
-    shift: '晚上',
-  },
-  // 10月29日患者 (周二)
-  {
-    name: '李十三',
-    gender: '男',
-    age: 52,
-    department: '内科',
-    date: '2025-10-29',
-    shift: '下午',
-  },
-  // 10月30日患者 (周三)
-  {
-    name: '陈十四',
-    gender: '女',
-    age: 36,
-    department: '内科',
-    date: '2025-10-30',
-    shift: '上午',
-  },
-  {
-    name: '刘十五',
-    gender: '男',
-    age: 48,
-    department: '外科',
-    date: '2025-10-30',
-    shift: '下午',
-  },
-  // 10月31日患者 (周四)
-  {
-    name: '杨十六',
-    gender: '女',
-    age: 27,
-    department: '内科',
-    date: '2025-10-31',
-    shift: '上午',
-  },
-  {
-    name: '黄十七',
-    gender: '男',
-    age: 62,
-    department: '内科',
-    date: '2025-10-31',
-    shift: '下午',
-  },
-  // 11月1日患者 (周五)
-  {
-    name: '朱十八',
-    gender: '女',
-    age: 34,
-    department: '内科',
-    date: '2025-11-01',
-    shift: '上午',
-  },
-  {
-    name: '林十九',
-    gender: '男',
-    age: 41,
-    department: '内科',
-    date: '2025-11-01',
-    shift: '晚上',
-  },
-  // 11月2日患者 (周六)
-  {
-    name: '胡二十',
-    gender: '女',
-    age: 50,
-    department: '内科',
-    date: '2025-11-02',
-    shift: '上午',
-  },
-  // 11月3日患者 (周日)
-  {
-    name: '徐二一',
-    gender: '男',
-    age: 39,
-    department: '外科',
-    date: '2025-11-03',
-    shift: '下午',
-  },
-  // 11月4日患者 (周一)
-  {
-    name: '何二二',
-    gender: '女',
-    age: 44,
-    department: '内科',
-    date: '2025-11-04',
-    shift: '上午',
-  },
-])
+const storedDoctorAccount = ref(localStorage.getItem('doctorAccount') ?? '')
 
-// 当前排班状态和搜索相关变量
+const displayName = computed(() => doctorProfile.value?.name || storedDoctorAccount.value || '医生')
+const doctorAccountDisplay = computed(
+  () => doctorProfile.value?.doctorAccount || storedDoctorAccount.value || '—',
+)
+const doctorDepartment = computed(() => doctorProfile.value?.department || '—')
+const doctorTitle = computed(() => doctorProfile.value?.title || '—')
+const doctorClinic = computed(() => doctorProfile.value?.clinicId || '')
+
+const scheduleTransform = computed(() => transformScheduleToWeekTable(shifts.value || []))
+const scheduleData = computed(() => scheduleTransform.value.scheduleData)
+const weekDays = computed(() => scheduleTransform.value.weekDays)
+const scheduleMap = computed(() => scheduleTransform.value.scheduleMap)
+const currentDoctorName = computed(
+  () => doctorProfile.value?.name?.trim() || storedDoctorAccount.value,
+)
+
+const patientEntries = computed<PatientEntry[]>(() =>
+  patients.value.map((patient) => ({
+    display: transformPatient(patient),
+    raw: patient,
+  })),
+)
+
+const requestEntries = computed<RequestEntry[]>(() =>
+  addNumberRequests.value.map((request) => ({
+    display: transformAddNumberRequest(request),
+    raw: request,
+  })),
+)
+
+const notificationList = computed<FrontendNotification[]>(() =>
+  notifications.value.map(transformNotification),
+)
+
 const showCurrentShift = ref(false)
 const searchName = ref('')
-const filteredPatientList = ref([...patientList.value]) // 初始为全部患者
-const currentShiftDisplay = ref('') // 显示当前筛选的班次信息
 
-// 选中的排班班次（用于申请调整排班）
-const selectedScheduleShift = ref(null)
-
-// 调整排班弹窗相关
-const scheduleAdjustDialogVisible = ref(false)
-const scheduleAdjustForm = ref({
-  type: 'leave', // 'leave' 或 'shift'
-  leaveDays: 1,
-  leaveReason: '',
-  selectedShift: '',
-  selectedShiftData: null,
-  shiftReason: '',
-})
-
-// 微型排班表数据（用于调班选择）
-const miniWeekDays = [
-  { label: '周一', prop: 'mon' },
-  { label: '周二', prop: 'tue' },
-  { label: '周三', prop: 'wed' },
-  { label: '周四', prop: 'thu' },
-  { label: '周五', prop: 'fri' },
-  { label: '周六', prop: 'sat' },
-  { label: '周日', prop: 'sun' },
-]
-
-const miniScheduleData = [
-  {
-    timeSlot: '上午',
-    mon: '李医生',
-    tue: '张艺',
-    wed: '',
-    thu: '张艺',
-    fri: '',
-    sat: '张艺',
-    sun: '',
-  },
-  {
-    timeSlot: '下午',
-    mon: '',
-    tue: '张艺',
-    wed: '',
-    thu: '张艺',
-    fri: '',
-    sat: '',
-    sun: '张艺',
-  },
-  {
-    timeSlot: '晚上',
-    mon: '张艺',
-    tue: '',
-    wed: '',
-    thu: '',
-    fri: '张艺',
-    sat: '',
-    sun: '',
-  },
-]
-
-// 获取医生当前或最近的班次信息
-const getDoctorShiftInfo = () => {
+function getShiftStartDateTime(date: string, timePeriod: number): Date {
+  const [yearStr, monthStr, dayStr] = date.split('-')
+  const parsedYear = Number.parseInt(yearStr ?? '', 10)
+  const parsedMonth = Number.parseInt(monthStr ?? '', 10)
+  const parsedDay = Number.parseInt(dayStr ?? '', 10)
   const now = new Date()
+  const base = new Date(
+    Number.isNaN(parsedYear) ? now.getFullYear() : parsedYear,
+    Number.isNaN(parsedMonth) ? 0 : parsedMonth - 1,
+    Number.isNaN(parsedDay) ? 1 : parsedDay,
+  )
+  const timeMap: Record<number, number> = { 1: 8, 2: 14, 3: 19 }
+  const hour = timeMap[timePeriod] ?? 0
+  base.setHours(hour, 0, 0, 0)
+  return base
+}
+
+const shiftInfo = computed(() => {
+  if (!patientEntries.value.length) return null
+
+  const now = new Date()
+  const currentDateStr = now.toISOString().split('T')[0]
   const hour = now.getHours()
-  const today = now.toISOString().split('T')[0]
+  let currentPeriod: number | null = null
 
-  // 判断当前时间段
-  let currentPeriod = ''
-  if (hour >= 8 && hour < 14) {
-    currentPeriod = '上午'
-  } else if (hour >= 14 && hour < 19) {
-    currentPeriod = '下午'
-  } else if (hour >= 19 && hour < 21) {
-    currentPeriod = '晚上'
-  }
+  if (hour >= 8 && hour < 14) currentPeriod = 1
+  else if (hour >= 14 && hour < 19) currentPeriod = 2
+  else if (hour >= 19 && hour < 22) currentPeriod = 3
 
-  // 获取当前医生姓名
-  const currentDoctorName = '张艺'
+  const sorted = [...patientEntries.value].sort(
+    (a, b) =>
+      getShiftStartDateTime(a.display.date, a.display.timePeriod).getTime() -
+      getShiftStartDateTime(b.display.date, b.display.timePeriod).getTime(),
+  )
 
-  // 检查当前是否在值班
-  let onDutyNow = false
-  let targetDate = today
-  let targetShift = currentPeriod
-
-  // 根据排班表检查当前时段是否值班
-  // 这里使用简化的逻辑，实际应该查询排班表数据库
-  const todayPatients = patientList.value.filter((p) => p.date === today && p.shift === currentPeriod)
-
-  if (todayPatients.length > 0 && currentPeriod) {
-    onDutyNow = true
-  }
-
-  // 如果当前不在值班，查找最近的未完成班次
-  if (!onDutyNow) {
-    // 查找所有未来的班次
-    const allShifts = patientList.value
-      .map((p) => ({ date: p.date, shift: p.shift }))
-      .filter((item, index, self) => index === self.findIndex((t) => t.date === item.date && t.shift === item.shift))
-      .sort((a, b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date)
-        const shiftOrder = { 上午: 1, 下午: 2, 晚上: 3 }
-        return shiftOrder[a.shift] - shiftOrder[b.shift]
-      })
-
-    // 找到第一个未来的或当前的班次
-    for (const shift of allShifts) {
-      if (shift.date > today || (shift.date === today && !currentPeriod)) {
-        targetDate = shift.date
-        targetShift = shift.shift
-        break
+  if (currentPeriod) {
+    const currentEntry = sorted.find(
+      (entry) =>
+        entry.display.date === currentDateStr && entry.display.timePeriod === currentPeriod,
+    )
+    if (currentEntry) {
+      return {
+        onDutyNow: true,
+        targetDate: currentEntry.display.date,
+        timePeriod: currentEntry.display.timePeriod,
+        shiftLabel: currentEntry.display.shift,
       }
     }
   }
 
-  return { onDutyNow, targetDate, targetShift }
-}
-
-// 切换当前排班显示
-const toggleCurrentShift = () => {
-  showCurrentShift.value = !showCurrentShift.value
-  filterPatients()
-}
-
-// 搜索患者
-const searchPatient = () => {
-  filterPatients()
-}
-
-// 过滤患者列表
-const filterPatients = () => {
-  let result = [...patientList.value]
-
-  // 如果启用了当前排班筛选
-  if (showCurrentShift.value) {
-    const shiftInfo = getDoctorShiftInfo()
-    const { onDutyNow, targetDate, targetShift } = shiftInfo
-
-    // 筛选对应班次的患者
-    result = result.filter((patient) => patient.date === targetDate && patient.shift === targetShift)
-
-    // 更新显示的班次信息
-    if (onDutyNow) {
-      currentShiftDisplay.value = `当前班次：${targetDate} ${targetShift}`
-    } else {
-      currentShiftDisplay.value = `最近班次：${targetDate} ${targetShift}`
+  const upcoming = sorted.find(
+    (entry) => getShiftStartDateTime(entry.display.date, entry.display.timePeriod) >= now,
+  )
+  if (upcoming) {
+    return {
+      onDutyNow: false,
+      targetDate: upcoming.display.date,
+      timePeriod: upcoming.display.timePeriod,
+      shiftLabel: upcoming.display.shift,
     }
-  } else {
-    // 未点击当前排班按钮，显示所有未就诊患者
-    currentShiftDisplay.value = '全部未就诊患者'
   }
 
-  // 如果有搜索关键词，按姓名筛选
-  if (searchName.value.trim()) {
-    result = result.filter((patient) =>
-      patient.name.toLowerCase().includes(searchName.value.toLowerCase()),
+  const last = sorted[sorted.length - 1]
+  if (last) {
+    return {
+      onDutyNow: false,
+      targetDate: last.display.date,
+      timePeriod: last.display.timePeriod,
+      shiftLabel: last.display.shift,
+    }
+  }
+
+  return null
+})
+
+const filteredPatientEntries = computed(() => {
+  let result = patientEntries.value
+
+  if (showCurrentShift.value && shiftInfo.value) {
+    result = result.filter(
+      (entry) =>
+        entry.display.date === shiftInfo.value!.targetDate &&
+        entry.display.timePeriod === shiftInfo.value!.timePeriod,
     )
   }
 
-  filteredPatientList.value = result
-}
+  if (searchName.value.trim()) {
+    const keyword = searchName.value.trim().toLowerCase()
+    result = result.filter((entry) => entry.display.name.toLowerCase().includes(keyword))
+  }
 
-// 通知数据
-const notifications = ref([
-  {
-    title: '系统维护通知',
-    content: '系统将于今晚22:00-24:00进行维护，请提前保存工作数据',
-    time: '2025-10-01 08:00',
-  },
-  { title: '新功能上线', content: '电子病历系统新增模板功能，欢迎使用', time: '2025-09-30 16:30' },
-  {
-    title: '会议通知',
-    content: '本周五下午14:00召开科室会议，请准时参加',
-    time: '2025-09-29 10:15',
-  },
-])
-
-// 加号申请数据
-const requests = ref([
-  { patientName: '周八', requestTime: '2025-10-01 12:30', reason: '急性腹痛，急需就诊' },
-  { patientName: '吴九', requestTime: '2025-10-01 13:15', reason: '从外地赶来，希望今天能看病' },
-])
-
-onMounted(() => {
-  // 这里可以从后端获取用户信息，或从本地存储中获取
-  username.value = '张艺' // 演示身份：张艺
-
-  // 初始化显示的班次信息
-  currentShiftDisplay.value = '全部未就诊患者'
-
-  // 实际项目中，这里应该从API获取数据
+  return result
 })
 
-const logout = () => {
-  // 清除token和医生账号
-  localStorage.removeItem('token')
-  localStorage.removeItem('doctorAccount')
-  ElMessage.success('已成功退出登录')
-  // 跳转到登录页
-  router.push('/login')
+const filteredPatientList = computed<FrontendPatient[]>(() =>
+  filteredPatientEntries.value.map((entry) => entry.display),
+)
+
+const currentShiftDisplay = computed(() => {
+  if (!showCurrentShift.value) {
+    return '全部未就诊患者'
+  }
+  if (!shiftInfo.value) {
+    return '暂无排班信息'
+  }
+  const prefix = shiftInfo.value.onDutyNow ? '当前班次' : '最近班次'
+  return `${prefix}：${shiftInfo.value.targetDate} ${shiftInfo.value.shiftLabel}`
+})
+
+const selectedScheduleShift = ref<SelectedScheduleShift | null>(null)
+const scheduleAdjustDialogVisible = ref(false)
+const scheduleAdjustForm = reactive({
+  type: 'leave' as 'leave' | 'shift',
+  leaveDays: 1,
+  leaveReason: '',
+  selectedShiftLabel: '',
+  selectedShiftData: null as { date: string; timePeriod: number } | null,
+  shiftReason: '',
+})
+
+const miniWeekDays = computed(() => weekDays.value.slice(0, Math.min(7, weekDays.value.length)))
+
+const miniScheduleData = computed<MiniScheduleRow[]>(() =>
+  [1, 2, 3].map((timePeriod) => {
+    const row: MiniScheduleRow = {
+      timeSlot: TIME_PERIOD_MAP[timePeriod] ?? '',
+    }
+    miniWeekDays.value.forEach(({ prop, date }) => {
+      const key = `${date}-${timePeriod}`
+      const shift = scheduleMap.value.get(key)
+      row[prop] = shift?.docName ?? ''
+    })
+    return row
+  }),
+)
+
+function getTimePeriodFromDetailSlot(slot: string): number | null {
+  const found = Object.entries(TIME_PERIOD_DETAIL_MAP).find(([, value]) => value === slot)
+  return found ? Number(found[0]) : null
 }
 
-const handleTabSelect = (index) => {
-  activeTab.value = index
+function getTimePeriodFromSimpleSlot(slot: string): number | null {
+  return TIME_PERIOD_REVERSE_MAP[slot] ?? null
 }
 
-// 接诊处理
-const handleDiagnosis = (index) => {
-  ElMessage.success(`已开始接诊 ${patientList.value[index].name}`)
-  // 实际项目中应该跳转到诊疗页面
-}
-
-// 同意加号申请
-const approveRequest = (index) => {
-  ElMessage.success(`已同意 ${requests.value[index].patientName} 的加号申请`)
-  requests.value.splice(index, 1)
-  // 实际项目中应该调用API更新数据
-}
-
-// 拒绝加号申请
-const rejectRequest = (index) => {
-  ElMessage.info(`已拒绝 ${requests.value[index].patientName} 的加号申请`)
-  requests.value.splice(index, 1)
-  // 实际项目中应该调用API更新数据
-}
-
-// 表格单元格样式
-const getCellClassName = ({ row, column, rowIndex, columnIndex }) => {
-  // 获取当前医生的姓名
-  const currentDoctorName = '张艺' // 实际项目中应该从用户信息中获取
-
-  // 获取当前列的属性名和值
-  const prop = column.property
-  const cellValue = row[prop]
-
-  // 如果是时间段列，不应用任何样式
-  if (prop === 'timeSlot') {
+const getCellClassName = (
+  row: WeekScheduleRow,
+  column: { property: string | undefined },
+): string => {
+  const columnProp = column.property
+  if (!columnProp || columnProp === 'timeSlot') {
     return ''
   }
 
-  // 检查是否是选中的单元格
   if (
     selectedScheduleShift.value &&
-    selectedScheduleShift.value.rowIndex === rowIndex &&
-    selectedScheduleShift.value.columnProp === prop
+    selectedScheduleShift.value.columnProp === columnProp &&
+    selectedScheduleShift.value.timeSlot === row.timeSlot
   ) {
     return 'selected-main-schedule-cell'
   }
 
-  // 检查是否是当前医生的值班
-  if (cellValue && cellValue.trim() === currentDoctorName) {
-    return 'doctor-duty-cell'
-  }
+  const cellValue = row[columnProp]?.trim() ?? ''
 
-  // 如果不是当前医生但有其他医生值班，返回普通值班样式
-  if (cellValue && cellValue.trim()) {
+  if (cellValue) {
+    if (currentDoctorName.value && cellValue === currentDoctorName.value) {
+      return 'doctor-duty-cell'
+    }
     return 'other-duty-cell'
   }
 
   return ''
 }
 
-// 鼠标悬停处理
-const handleCellEnter = (row, column, cell, event) => {
+const handleCellEnter = (_row: unknown, _column: unknown, cell: HTMLElement) => {
   if (cell.classList.contains('doctor-duty-cell')) {
     cell.style.cursor = 'pointer'
   }
 }
 
-const handleCellLeave = (row, column, cell, event) => {
+const handleCellLeave = (_row: unknown, _column: unknown, cell: HTMLElement) => {
   cell.style.cursor = 'default'
 }
 
-// 处理主排班表单元格点击
-const handleMainScheduleCellClick = (row, column, cell, event) => {
-  // 如果点击的是时间段列，不处理
-  if (column.property === 'timeSlot') return
+const handleMainScheduleCellClick = (
+  row: WeekScheduleRow,
+  column: { property: string | undefined },
+) => {
+  const columnProp = column.property
+  if (!columnProp || columnProp === 'timeSlot') return
 
-  const currentDoctorName = '张艺'
-  const cellValue = row[column.property]
+  const columnInfo = weekDays.value.find((day) => day.prop === columnProp)
+  if (!columnInfo?.date) return
 
-  // 只有点击本人的班次才能选中
-  if (cellValue && cellValue.trim() === currentDoctorName) {
-    // 构造选中的班次信息
-    const shiftInfo = {
-      rowIndex: scheduleData.findIndex((item) => item === row),
-      columnProp: column.property,
-      timeSlot: row.timeSlot,
-      dayLabel: weekDays.find((d) => d.prop === column.property)?.label,
-    }
+  const timePeriod = getTimePeriodFromDetailSlot(row.timeSlot)
+  if (!timePeriod) return
 
-    // 如果点击的是已选中的班次，取消选中；否则选中新班次
-    if (
-      selectedScheduleShift.value &&
-      selectedScheduleShift.value.rowIndex === shiftInfo.rowIndex &&
-      selectedScheduleShift.value.columnProp === shiftInfo.columnProp
-    ) {
-      selectedScheduleShift.value = null
-      ElMessage.info('已取消选择班次')
-    } else {
-      selectedScheduleShift.value = shiftInfo
-      ElMessage.success(`已选择：${shiftInfo.dayLabel} ${shiftInfo.timeSlot}`)
-    }
+  const mapKey = `${columnInfo.date}-${timePeriod}`
+  const shift = scheduleMap.value.get(mapKey)
+  const cellValue = row[columnProp]?.trim() ?? ''
+  const assignedDoctor = shift?.docName || cellValue
+
+  if (!assignedDoctor) {
+    ElMessage.warning('该班次暂无医生排班')
+    return
+  }
+
+  if (currentDoctorName.value && assignedDoctor !== currentDoctorName.value) {
+    ElMessage.warning('只能选择自己的班次')
+    return
+  }
+
+  const isSameSelection =
+    selectedScheduleShift.value &&
+    selectedScheduleShift.value.columnProp === columnProp &&
+    selectedScheduleShift.value.timeSlot === row.timeSlot
+
+  if (isSameSelection) {
+    selectedScheduleShift.value = null
+    ElMessage.info('已取消选择班次')
+    return
+  }
+
+  selectedScheduleShift.value = {
+    rowIndex: scheduleData.value.findIndex((item) => item === row),
+    columnProp,
+    timeSlot: row.timeSlot,
+    dayLabel: columnInfo.label,
+    date: columnInfo.date,
+    timePeriod,
+    shift,
+  }
+
+  scheduleAdjustForm.selectedShiftLabel = `${columnInfo.label} ${row.timeSlot}`
+  ElMessage.success(`已选择：${columnInfo.label} ${row.timeSlot}`)
+}
+
+const handleScheduleCellClick = (
+  row: MiniScheduleRow,
+  column: { property: string | undefined },
+) => {
+  const columnProp = column.property
+  if (!columnProp || columnProp === 'timeSlot') return
+
+  const columnInfo = miniWeekDays.value.find((day) => day.prop === columnProp)
+  if (!columnInfo?.date) return
+
+  const timePeriod = getTimePeriodFromSimpleSlot(row.timeSlot)
+  if (!timePeriod) return
+
+  scheduleAdjustForm.selectedShiftLabel = `${columnInfo.label} ${row.timeSlot}`
+  scheduleAdjustForm.selectedShiftData = {
+    date: columnInfo.date,
+    timePeriod,
   }
 }
 
-// 打开调整排班弹窗
-const openScheduleAdjustDialog = () => {
-  scheduleAdjustDialogVisible.value = true
-}
-
-// 关闭调整排班弹窗
-const closeScheduleAdjustDialog = () => {
-  scheduleAdjustDialogVisible.value = false
-  // 重置表单
-  scheduleAdjustForm.value = {
-    type: 'leave',
-    leaveDays: 1,
-    leaveReason: '',
-    selectedShift: '',
-    selectedShiftData: null,
-    shiftReason: '',
-  }
-}
-
-// 处理排班表格单元格点击
-const handleScheduleCellClick = (row, column, cell, event) => {
-  // 如果点击的是时间段列，不处理
-  if (column.property === 'timeSlot') return
-
-  const dayLabel = miniWeekDays.find((d) => d.prop === column.property)?.label
-  const timeSlot = row.timeSlot
-
-  if (dayLabel && timeSlot) {
-    scheduleAdjustForm.value.selectedShift = `${dayLabel} ${timeSlot}`
-    scheduleAdjustForm.value.selectedShiftData = {
-      day: column.property,
-      timeSlot: timeSlot,
-    }
-  }
-}
-
-// 获取微型排班表单元格样式
-const getMiniScheduleCellClass = ({ row, column }) => {
-  const currentDoctorName = '张艺'
-  const prop = column.property
-
-  if (prop === 'timeSlot') {
+const getMiniScheduleCellClass = (
+  row: MiniScheduleRow,
+  column: { property: string | undefined },
+): string => {
+  const columnProp = column.property
+  if (!columnProp || columnProp === 'timeSlot') {
     return ''
   }
 
-  const cellValue = row[prop]
+  const columnInfo = miniWeekDays.value.find((day) => day.prop === columnProp)
+  if (!columnInfo?.date) return ''
 
-  // 检查是否是已选择的单元格
+  const timePeriod = getTimePeriodFromSimpleSlot(row.timeSlot)
+  if (!timePeriod) return ''
+
   if (
-    scheduleAdjustForm.value.selectedShiftData &&
-    scheduleAdjustForm.value.selectedShiftData.day === prop &&
-    scheduleAdjustForm.value.selectedShiftData.timeSlot === row.timeSlot
+    scheduleAdjustForm.selectedShiftData &&
+    scheduleAdjustForm.selectedShiftData.date === columnInfo.date &&
+    scheduleAdjustForm.selectedShiftData.timePeriod === timePeriod
   ) {
     return 'selected-schedule-cell'
   }
 
-  // 检查是否是当前医生的值班
-  if (cellValue && cellValue.trim() === currentDoctorName) {
-    return 'doctor-duty-cell'
-  }
+  const cellValue = row[columnProp]?.trim() ?? ''
 
-  // 如果不是当前医生但有其他医生值班
-  if (cellValue && cellValue.trim()) {
+  if (cellValue) {
+    if (currentDoctorName.value && cellValue === currentDoctorName.value) {
+      return 'doctor-duty-cell'
+    }
     return 'other-duty-cell'
   }
 
-  // 空闲时段，可点击
   return 'available-schedule-cell'
 }
 
-// 提交调整排班申请
-const submitScheduleAdjust = () => {
-  if (scheduleAdjustForm.value.type === 'leave') {
-    // 验证请假表单
-    if (!scheduleAdjustForm.value.leaveDays || scheduleAdjustForm.value.leaveDays < 1) {
+const resetScheduleAdjustForm = () => {
+  scheduleAdjustForm.type = 'leave'
+  scheduleAdjustForm.leaveDays = 1
+  scheduleAdjustForm.leaveReason = ''
+  scheduleAdjustForm.shiftReason = ''
+  scheduleAdjustForm.selectedShiftData = null
+  scheduleAdjustForm.selectedShiftLabel = selectedScheduleShift.value
+    ? `${selectedScheduleShift.value.dayLabel} ${selectedScheduleShift.value.timeSlot}`
+    : ''
+}
+
+const openScheduleAdjustDialog = () => {
+  if (!selectedScheduleShift.value) {
+    ElMessage.warning('请先在排班表中选择班次')
+    return
+  }
+  if (!selectedScheduleShift.value.shift) {
+    ElMessage.warning('无法获取该班次的详细信息')
+    return
+  }
+  resetScheduleAdjustForm()
+  scheduleAdjustDialogVisible.value = true
+}
+
+const closeScheduleAdjustDialog = () => {
+  scheduleAdjustDialogVisible.value = false
+  resetScheduleAdjustForm()
+}
+
+const submitScheduleAdjust = async () => {
+  if (!doctorId.value) {
+    ElMessage.error('医生信息已失效，请重新登录')
+    router.push('/login')
+    return
+  }
+
+  if (!selectedScheduleShift.value || !selectedScheduleShift.value.shift) {
+    ElMessage.warning('请先选择需要调整的班次')
+    return
+  }
+
+  if (scheduleAdjustForm.type === 'leave') {
+    if (!scheduleAdjustForm.leaveDays || scheduleAdjustForm.leaveDays < 1) {
       ElMessage.warning('请输入有效的请假天数')
       return
     }
-    if (!scheduleAdjustForm.value.leaveReason.trim()) {
+    if (!scheduleAdjustForm.leaveReason.trim()) {
       ElMessage.warning('请填写请假原因')
       return
     }
-
-    ElMessage.success(
-      `请假申请已提交：${scheduleAdjustForm.value.leaveDays}天，原因：${scheduleAdjustForm.value.leaveReason}`,
-    )
-  } else if (scheduleAdjustForm.value.type === 'shift') {
-    // 验证调班表单
-    if (!scheduleAdjustForm.value.selectedShift) {
+  } else {
+    if (!scheduleAdjustForm.selectedShiftData) {
       ElMessage.warning('请选择目标班次')
       return
     }
-    if (!scheduleAdjustForm.value.shiftReason.trim()) {
+    if (!scheduleAdjustForm.shiftReason.trim()) {
       ElMessage.warning('请填写调班申请原因')
       return
     }
-
-    ElMessage.success(
-      `调班申请已提交：目标班次 ${scheduleAdjustForm.value.selectedShift}，原因：${scheduleAdjustForm.value.shiftReason}`,
-    )
   }
 
-  // 实际项目中应该调用API提交申请
-  closeScheduleAdjustDialog()
+  const originalShift = selectedScheduleShift.value.shift
+  const payload: ScheduleChangeRequest = {
+    docId: doctorId.value,
+    originalScheduleId:
+      originalShift.scheduleId ||
+      `${originalShift.docID}-${originalShift.date}-${originalShift.timePeriod}`,
+    changeType: scheduleAdjustForm.type === 'leave' ? 1 : 0,
+    leaveTimeLength: scheduleAdjustForm.type === 'leave' ? scheduleAdjustForm.leaveDays * 8 : 0,
+    reason:
+      scheduleAdjustForm.type === 'leave'
+        ? scheduleAdjustForm.leaveReason.trim()
+        : scheduleAdjustForm.shiftReason.trim(),
+  }
+
+  if (scheduleAdjustForm.type === 'shift' && scheduleAdjustForm.selectedShiftData) {
+    payload.targetDate = scheduleAdjustForm.selectedShiftData.date
+    payload.timePeriod = scheduleAdjustForm.selectedShiftData.timePeriod
+  }
+
+  try {
+    const response = await submitScheduleChangeRequest(payload)
+    if (response.code !== 200) {
+      throw new Error(response.msg || '排班申请提交失败')
+    }
+    ElMessage.success('排班申请已提交')
+    scheduleAdjustDialogVisible.value = false
+    await loadShifts()
+    resetScheduleAdjustForm()
+    selectedScheduleShift.value = null
+  } catch (err) {
+    if (err instanceof Error) {
+      ElMessage.error(err.message)
+    } else {
+      ElMessage.error('排班申请提交失败')
+    }
+  }
 }
+
+const decideAddNumber = async (request: AddNumberApplication, approved: boolean) => {
+  try {
+    const response = await submitAddNumberResult({
+      addId: request.addId,
+      approved,
+    })
+    if (response.code !== 200) {
+      throw new Error(response.msg || '操作失败')
+    }
+    ElMessage.success(
+      approved
+        ? `已同意 ${request.patientName} 的加号申请`
+        : `已拒绝 ${request.patientName} 的加号申请`,
+    )
+  } catch (err) {
+    if (err instanceof Error) {
+      ElMessage.error(err.message)
+    } else {
+      ElMessage.error('加号申请处理失败')
+    }
+  }
+}
+
+const registerRecordsDialogVisible = ref(false)
+const registerRecordsLoading = ref(false)
+const registerRecords = ref<RegisterRecord[]>([])
+const registerRecordPatientName = ref('')
+
+const openRegisterRecordsDialog = async (entry: PatientEntry) => {
+  registerRecordsDialogVisible.value = true
+  registerRecordsLoading.value = true
+  registerRecordPatientName.value = entry.display.name
+  registerRecords.value = []
+  try {
+    const response = await getRegisterRecords(entry.display.registerId, doctorId.value ?? undefined)
+    registerRecords.value = response.records ?? []
+  } catch (err) {
+    if (err instanceof Error) {
+      ElMessage.error(err.message)
+    } else {
+      ElMessage.error('获取挂号记录失败')
+    }
+  } finally {
+    registerRecordsLoading.value = false
+  }
+}
+
+const closeRegisterRecordsDialog = () => {
+  registerRecordsDialogVisible.value = false
+  registerRecords.value = []
+  registerRecordPatientName.value = ''
+}
+
+const formatRecordTime = (value?: string) => (value ? formatDateTime(value) : '—')
+
+const handleDiagnosis = async (index: number) => {
+  if (!doctorId.value) {
+    ElMessage.error('医生信息已失效，请重新登录')
+    router.push('/login')
+    return
+  }
+
+  const entry = filteredPatientEntries.value[index]
+  if (!entry) {
+    ElMessage.warning('未找到患者信息')
+    return
+  }
+
+  try {
+    const response = await updatePatientStatus({
+      doctorId: doctorId.value,
+      registerId: entry.display.registerId,
+      doctorStatus: 1,
+      patientStatus: 1,
+    })
+    if (response.code !== 200) {
+      throw new Error(response.msg || '更新患者状态失败')
+    }
+    ElMessage.success(`已开始接诊 ${entry.display.name}`)
+    await loadPatients()
+    await openRegisterRecordsDialog(entry)
+  } catch (err) {
+    if (err instanceof Error) {
+      ElMessage.error(err.message)
+    } else {
+      ElMessage.error('接诊失败')
+    }
+  }
+}
+
+const toggleCurrentShift = () => {
+  showCurrentShift.value = !showCurrentShift.value
+}
+
+const searchPatient = () => {
+  // 计算属性会自动完成过滤，这里保留方法供输入框回车调用。
+}
+
+const logout = () => {
+  cleanup()
+  localStorage.removeItem('token')
+  localStorage.removeItem('doctorAccount')
+  localStorage.removeItem('doctorId')
+  ElMessage.success('已成功退出登录')
+  router.push('/login')
+}
+
+const handleTabSelect = (index: string) => {
+  activeTab.value = index as 'duty' | 'personal'
+}
+
+watch(error, (message) => {
+  if (message) {
+    ElMessage.error(message)
+    error.value = null
+  }
+})
+
+watch(
+  doctorProfile,
+  (profile) => {
+    if (profile?.doctorAccount) {
+      storedDoctorAccount.value = profile.doctorAccount
+    }
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  const storedToken = localStorage.getItem('token')
+  const storedDoctorId = localStorage.getItem('doctorId')
+
+  if (!storedToken || !storedDoctorId) {
+    router.push('/login')
+  }
+})
 </script>
 
 <style scoped>
@@ -1253,6 +1257,12 @@ const submitScheduleAdjust = () => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.register-loading {
+  text-align: center;
+  padding: 20px 0;
+  color: #909399;
 }
 
 /* 1. 高亮行（与 el-table 默认的 current-row 样式叠加） */

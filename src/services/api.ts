@@ -61,7 +61,7 @@ apiClient.interceptors.response.use(
             localStorage.removeItem('token')
             localStorage.removeItem('doctorAccount')
             // 判断是否是登录请求
-            const isLoginRequest = (error.config as any)?.isLogin
+            const isLoginRequest = error.config?.isLogin
             if (!isLoginRequest) {
               ElMessage.error('未授权，请重新登录')
               router.push('/login')
@@ -75,7 +75,7 @@ apiClient.interceptors.response.use(
           ElMessage.error('请求资源不存在')
           break
         case 500:
-          ElMessage.error('服务器错误')
+          ElMessage.error('服务器未响应，请稍后再试')
           break
         default:
           ElMessage.error(`请求失败: ${error.response.status}`)
@@ -97,11 +97,36 @@ apiClient.interceptors.response.use(
  * POST /doctor/login
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
-  const response = await apiClient.post<ApiResponse<LoginResponse>>('/login', credentials)
-  if (response.data.code === 200 && response.data.data) {
-    return response.data.data
+  const response = await apiClient.post<ApiResponse<LoginResponse>>('/login', credentials, {
+    // 标记登录请求，避免401时重复提示
+    isLogin: true,
+  })
+
+  type LoginPayload = ApiResponse<LoginResponse> &
+    Partial<LoginResponse> & {
+      doctorID?: string
+    }
+
+  const data = response.data as LoginPayload
+
+  const resolvedToken = data.data?.token ?? data.token
+  const resolvedDoctorId = data.data?.doctorId ?? data.doctorId ?? data.doctorID ?? undefined
+
+  if (resolvedToken && typeof resolvedToken === 'string') {
+    if (!resolvedDoctorId || typeof resolvedDoctorId !== 'string') {
+      throw new Error('登录响应缺少医生ID')
+    }
+    return {
+      token: resolvedToken,
+      doctorId: resolvedDoctorId,
+    }
   }
-  throw new Error(response.data.msg || '登录失败')
+
+  if (data.code === 200 && data.data) {
+    return data.data
+  }
+
+  throw new Error(data.msg || '登录失败')
 }
 
 /**
@@ -208,10 +233,11 @@ function createSSEConnection<T>(
     }
   }
 
-  eventSource.onerror = (error) => {
-    console.error('SSE 连接错误:', error)
+  eventSource.onerror = (event) => {
+    console.error('SSE 连接错误:', event)
     if (onError) {
-      onError(error as Error)
+      const emittedError = event instanceof Error ? event : new Error('SSE 连接发生错误')
+      onError(emittedError)
     }
   }
 
