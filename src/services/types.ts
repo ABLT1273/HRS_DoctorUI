@@ -106,7 +106,7 @@ export interface DoctorProfileResponse {
 // 排班变更申请
 export interface ScheduleChangeRequest {
   docId: string
-  originalScheduleId: string
+  originalTime: string // 格式: date-timePeriod, 例如: "2025-11-06-1"
   changeType: number // 0: 调班, 1: 请假
   targetDate?: string // ISO date format (调班时使用)
   timePeriod?: number // 调班时使用
