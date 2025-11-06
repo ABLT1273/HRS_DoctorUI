@@ -134,10 +134,19 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
  * GET /doctor/shifts
  */
 export async function getShifts(docId?: string): Promise<ShiftsResponse> {
-  const response = await apiClient.get<ShiftsResponse>('/shifts', {
+  const response = await apiClient.get<ApiResponse<ShiftsResponse>>('/shifts', {
     params: { docId },
   })
-  return response.data
+  const data = response.data as any
+  // 处理后端返回的嵌套结构 { code, msg, data: { shifts: [...] } }
+  if (data.data && Array.isArray(data.data.shifts)) {
+    return data.data
+  }
+  // 如果已经是正确格式 { shifts: [...] }
+  if (Array.isArray(data.shifts)) {
+    return data
+  }
+  throw new Error('排班数据格式错误')
 }
 
 /**
@@ -145,10 +154,19 @@ export async function getShifts(docId?: string): Promise<ShiftsResponse> {
  * GET /doctor/patients
  */
 export async function getPatients(docId: string): Promise<PatientsResponse> {
-  const response = await apiClient.get<PatientsResponse>('/patients', {
+  const response = await apiClient.get<ApiResponse<PatientsResponse>>('/patients', {
     params: { docId },
   })
-  return response.data
+  const data = response.data as any
+  // 处理后端返回的嵌套结构 { code, msg, data: { patients: [...] } }
+  if (data.data && Array.isArray(data.data.patients)) {
+    return data.data
+  }
+  // 如果已经是正确格式 { patients: [...] }
+  if (Array.isArray(data.patients)) {
+    return data
+  }
+  throw new Error('患者列表数据格式错误')
 }
 
 /**
@@ -179,8 +197,17 @@ export async function submitAddNumberResult(request: AddNumberResultRequest): Pr
  * GET /doctor/{docID}/profile
  */
 export async function getDoctorProfile(docId: string): Promise<DoctorProfileResponse> {
-  const response = await apiClient.get<DoctorProfileResponse>(`/${docId}/profile`)
-  return response.data
+  const response = await apiClient.get<ApiResponse<DoctorProfileResponse>>(`/${docId}/profile`)
+  const data = response.data as any
+  // 处理后端返回的嵌套结构 { code, msg, data: { doctor: {...} } }
+  if (data.data && data.data.doctor) {
+    return data.data
+  }
+  // 如果已经是正确格式 { doctor: {...} }
+  if (data.doctor) {
+    return data
+  }
+  throw new Error('医生信息数据格式错误')
 }
 
 /**
