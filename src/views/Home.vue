@@ -770,7 +770,7 @@ const submitScheduleAdjust = async () => {
   const originalShift = selectedScheduleShift.value.shift
   const payload: ScheduleChangeRequest = {
     docId: doctorId.value,
-    originalTime: `${originalShift.date}-${originalShift.timePeriod}`,
+    originalTime: `${originalShift.date}_${originalShift.timePeriod}`,
     changeType: scheduleAdjustForm.type === 'leave' ? 1 : 0,
     leaveTimeLength: scheduleAdjustForm.type === 'leave' ? scheduleAdjustForm.leaveDays * 8 : 0,
     reason:
