@@ -95408,7 +95408,7 @@
                   tags: ['医生端'],
                   parameters: [
                     {
-                      name: 'docId',
+                      name: 'docID',
                       in: 'query',
                       description: '',
                       required: false,
@@ -95523,7 +95523,7 @@
                   tags: ['医生端'],
                   parameters: [
                     {
-                      name: 'docId',
+                      name: 'docID',
                       in: 'query',
                       description: '医生ID',
                       required: false,
@@ -95562,9 +95562,9 @@
                                     date: { type: 'string', format: 'date' },
                                     docName: { type: 'string' },
                                     timePeriod: { type: 'integer' },
-                                    docId: { type: 'string' },
+                                    docID: { type: 'string' },
                                   },
-                                  required: ['date', 'docName', 'timePeriod', 'docId'],
+                                  required: ['date', 'docName', 'timePeriod', 'docID'],
                                 },
                               },
                             },
@@ -95587,7 +95587,7 @@
                   tags: ['医生端'],
                   parameters: [
                     {
-                      name: 'docId',
+                      name: 'docID',
                       in: 'query',
                       description: '医生ID',
                       required: true,
@@ -95659,7 +95659,7 @@
                       schema: { type: 'string' },
                     },
                     {
-                      name: 'docId',
+                      name: 'docID',
                       in: 'query',
                       description: '医生ID（可选，用于权限校验）',
                       required: false,
@@ -95716,7 +95716,7 @@
                   tags: ['医生端'],
                   parameters: [
                     {
-                      name: 'docId',
+                      name: 'docID',
                       in: 'query',
                       description: '医生ID',
                       required: true,
@@ -95763,7 +95763,7 @@
                   security: [],
                 },
               },
-              '/doctor/{docId}/profile': {
+              '/doctor/{docID}/profile': {
                 get: {
                   summary: '医生个人信息',
                   deprecated: false,
@@ -95772,7 +95772,7 @@
                   tags: ['医生端'],
                   parameters: [
                     {
-                      name: 'docId',
+                      name: 'docID',
                       in: 'path',
                       description: '',
                       required: true,
@@ -95841,7 +95841,7 @@
                           type: 'object',
                           properties: {
                             docId: { type: 'string' },
-                            originalScheduleId: { type: 'string' },
+                            originalTime: { type: 'string' },
                             changeType: { type: 'integer' },
                             targetDate: { type: 'string', format: 'date' },
                             timePeriod: { type: 'integer' },
@@ -95849,12 +95849,7 @@
                             leaveTimeLength: { type: 'integer' },
                             reason: { type: 'string' },
                           },
-                          required: [
-                            'docId',
-                            'originalScheduleId',
-                            'changeType',
-                            'leaveTimeLength',
-                          ],
+                          required: ['docId', 'originalTime', 'changeType', 'leaveTimeLength'],
                         },
                         examples: {},
                       },
