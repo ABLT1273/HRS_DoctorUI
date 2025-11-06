@@ -553,8 +553,11 @@ function getTimePeriodFromSimpleSlot(slot: string): number | null {
 
 const getCellClassName = (
   row: WeekScheduleRow,
-  column: { property: string | undefined },
+  column: { property: string | undefined } | undefined,
 ): string => {
+  if (!column) {
+    return ''
+  }
   const columnProp = column.property
   if (!columnProp || columnProp === 'timeSlot') {
     return ''
@@ -592,8 +595,9 @@ const handleCellLeave = (_row: unknown, _column: unknown, cell: HTMLElement) => 
 
 const handleMainScheduleCellClick = (
   row: WeekScheduleRow,
-  column: { property: string | undefined },
+  column: { property: string | undefined } | undefined,
 ) => {
+  if (!column) return
   const columnProp = column.property
   if (!columnProp || columnProp === 'timeSlot') return
 
@@ -645,8 +649,9 @@ const handleMainScheduleCellClick = (
 
 const handleScheduleCellClick = (
   row: MiniScheduleRow,
-  column: { property: string | undefined },
+  column: { property: string | undefined } | undefined,
 ) => {
+  if (!column) return
   const columnProp = column.property
   if (!columnProp || columnProp === 'timeSlot') return
 
@@ -665,8 +670,11 @@ const handleScheduleCellClick = (
 
 const getMiniScheduleCellClass = (
   row: MiniScheduleRow,
-  column: { property: string | undefined },
+  column: { property: string | undefined } | undefined,
 ): string => {
+  if (!column) {
+    return ''
+  }
   const columnProp = column.property
   if (!columnProp || columnProp === 'timeSlot') {
     return ''
