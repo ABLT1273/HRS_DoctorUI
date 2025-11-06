@@ -18,7 +18,7 @@
           </el-menu>
         </div>
       </el-header>
-      <el-main v-loading="loading">
+      <el-main>
         <div v-if="activeTab === 'duty'" class="tab-content">
           <div class="welcome-message">
             <h2>欢迎，{{ displayName }}！</h2>
@@ -169,13 +169,12 @@
           <div class="personal-info">
             <h2>个人信息</h2>
             <el-descriptions :column="2" border>
-              <el-descriptions-item label="姓名">{{ displayName }}</el-descriptions-item>
+              <el-descriptions-item label="医生ID">{{ doctorIdDisplay }}</el-descriptions-item>
               <el-descriptions-item label="账号">{{ doctorAccountDisplay }}</el-descriptions-item>
+              <el-descriptions-item label="姓名">{{ displayName }}</el-descriptions-item>
               <el-descriptions-item label="科室">{{ doctorDepartment }}</el-descriptions-item>
+              <el-descriptions-item label="诊室">{{ doctorClinic }}</el-descriptions-item>
               <el-descriptions-item label="职称">{{ doctorTitle }}</el-descriptions-item>
-              <el-descriptions-item v-if="doctorClinic" label="诊室">{{
-                doctorClinic
-              }}</el-descriptions-item>
             </el-descriptions>
           </div>
         </div>
@@ -372,10 +371,13 @@ const {
 const storedDoctorAccount = ref(localStorage.getItem('doctorAccount') ?? '')
 
 const displayName = computed(() => doctorProfile.value?.name || storedDoctorAccount.value || '医生')
-const doctorAccountDisplay = computed(() => storedDoctorAccount.value || '—')
+const doctorIdDisplay = computed(() => doctorProfile.value?.doctorId || doctorId.value || '—')
+const doctorAccountDisplay = computed(
+  () => doctorProfile.value?.doctorAccount || storedDoctorAccount.value || '—',
+)
 const doctorDepartment = computed(() => doctorProfile.value?.department || '—')
 const doctorTitle = computed(() => doctorProfile.value?.title || '—')
-const doctorClinic = computed(() => doctorProfile.value?.clinicId || '')
+const doctorClinic = computed(() => doctorProfile.value?.clinicId || '—')
 
 const scheduleTransform = computed(() => transformScheduleToWeekTable(shifts.value || []))
 const scheduleData = computed(() => scheduleTransform.value.scheduleData)
@@ -764,7 +766,7 @@ const submitScheduleAdjust = async () => {
     docId: doctorId.value,
     originalScheduleId:
       originalShift.scheduleId ||
-      `${originalShift.docID}-${originalShift.date}-${originalShift.timePeriod}`,
+      `${originalShift.docId}-${originalShift.date}-${originalShift.timePeriod}`,
     changeType: scheduleAdjustForm.type === 'leave' ? 1 : 0,
     leaveTimeLength: scheduleAdjustForm.type === 'leave' ? scheduleAdjustForm.leaveDays * 8 : 0,
     reason:

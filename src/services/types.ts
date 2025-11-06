@@ -22,7 +22,7 @@ export interface Shift {
   date: string // ISO date format
   docName: string
   timePeriod: number // 时间段
-  docID: string
+  docId: string
 }
 
 export interface ShiftsResponse {
@@ -92,6 +92,7 @@ export interface NotificationsResponse {
 // 医生个人信息
 export interface DoctorProfile {
   doctorId: string
+  doctorAccount?: string
   name: string
   department: string
   clinicId: string
