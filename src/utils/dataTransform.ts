@@ -141,6 +141,7 @@ function getMonday(date: Date): Date {
  * 将前端排班数据转换为周排班表格式
  */
 export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransformResult {
+  console.log('转换排班数据，接收到的shifts:', shifts)
   const scheduleData: WeekScheduleRow[] = [
     { timeSlot: TIME_PERIOD_DETAIL_MAP[1] },
     { timeSlot: TIME_PERIOD_DETAIL_MAP[2] },
@@ -150,6 +151,7 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
   const weekDays: WeekDayColumn[] = []
   const today = new Date()
   const startMonday = getMonday(new Date(today))
+  console.log('排班表起始周一:', startMonday.toISOString().split('T')[0])
 
   for (let week = 0; week < 3; week++) {
     const daysInWeek = week < 2 ? 5 : 7
@@ -183,14 +185,17 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
     scheduleMap.set(mapKey, shift)
 
     const column = weekDays.find((col) => col.date === shift.date)
+    console.log(`处理排班: ${shift.date} ${shift.docName}, 找到列:`, column?.label)
     if (column) {
       const rowIndex = shift.timePeriod - 1
       if (rowIndex >= 0 && rowIndex < 3) {
+        console.log(`  -> 填充到 [${rowIndex}][${column.prop}] = ${shift.docName}`)
         scheduleData[rowIndex][column.prop] = shift.docName
       }
     }
   }
 
+  console.log('转换后的排班数据:', scheduleData)
   return { scheduleData, weekDays, scheduleMap }
 }
 

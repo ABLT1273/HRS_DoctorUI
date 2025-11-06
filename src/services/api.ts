@@ -138,14 +138,18 @@ export async function getShifts(docId?: string): Promise<ShiftsResponse> {
     params: { docId },
   })
   const data = response.data as any
+  console.log('排班接口原始响应:', data)
   // 处理后端返回的嵌套结构 { code, msg, data: { shifts: [...] } }
   if (data.data && Array.isArray(data.data.shifts)) {
+    console.log('排班数据(嵌套格式):', data.data.shifts)
     return data.data
   }
   // 如果已经是正确格式 { shifts: [...] }
   if (Array.isArray(data.shifts)) {
+    console.log('排班数据(直接格式):', data.shifts)
     return data
   }
+  console.error('排班数据格式不正确:', data)
   throw new Error('排班数据格式错误')
 }
 
