@@ -28,12 +28,14 @@
 完整实现了Axios实例配置和所有API接口函数:
 
 **Axios配置**:
+
 - 自动添加Authorization头(Bearer Token)
 - 请求/响应拦截器
 - 统一错误处理(401/403/404/500等)
 - 自动重定向到登录页(未授权时)
 
 **API接口函数**(共10个):
+
 1. `login()` - 医生登录
 2. `getShifts()` - 获取排班列表
 3. `getPatients()` - 获取患者列表
@@ -46,6 +48,7 @@
 10. `subscribeNotifications()` - 订阅系统通知(SSE)
 
 **SSE支持**:
+
 - 实现了Server-Sent Events连接
 - 自动JSON解析
 - 错误处理和重连机制
@@ -57,11 +60,13 @@
 实现了API数据格式与前端展示格式之间的转换:
 
 **常量映射**:
+
 - `TIME_PERIOD_MAP`: 时段编号 -> 文本 (1:"上午", 2:"下午", 3:"晚上")
 - `TIME_PERIOD_DETAIL_MAP`: 时段编号 -> 详细时间
 - `TIME_PERIOD_REVERSE_MAP`: 时段文本 -> 编号
 
 **转换函数**:
+
 1. `formatDateTime()` - ISO时间 -> 本地格式
 2. `transformPatient()` - API患者数据 -> 前端格式
 3. `transformAddNumberRequest()` - API加号申请 -> 前端格式
@@ -74,6 +79,7 @@
 创建了Vue Composition API的可复用数据管理逻辑:
 
 **功能**:
+
 - 统一管理医生数据(个人信息、排班、患者、通知等)
 - 自动订阅SSE连接
 - 组件挂载时自动初始化
@@ -81,6 +87,7 @@
 - Loading和Error状态管理
 
 **导出的数据和方法**:
+
 - `doctorProfile` - 医生个人信息
 - `shifts` - 排班列表
 - `patients` - 患者列表
@@ -106,6 +113,7 @@
 更新了登录页面以使用真实API:
 
 **变更**:
+
 - 从模拟登录改为调用真实API
 - 使用 `login()` API函数
 - 保存返回的token和doctorId到localStorage
@@ -113,7 +121,8 @@
 - 改进了错误处理
 
 **字段映射**:
-- 前端表单 `username` -> API `docID`
+
+- 前端表单 `username` -> API `docId`
 - 前端表单 `password` -> API `pass`
 
 ## 📊 API冲突分析报告
@@ -121,11 +130,13 @@
 已生成详细的冲突分析报告: `API_CONFLICT_REPORT.md`
 
 **关键发现**:
+
 - ✅ **无不可调和的冲突**
 - ⚠️ 7处需要数据转换的差异
 - 📝 3条后端优化建议
 
 **主要差异**:
+
 1. 排班数据格式(线性列表 vs 周表格) - 已实现转换函数
 2. 患者列表字段名不一致 - 已实现转换函数
 3. 加号申请和通知的字段名差异 - 已实现转换函数
@@ -136,11 +147,12 @@
 ### 1. 在组件中使用API
 
 #### 方式A: 直接调用API函数
+
 ```typescript
 import { login, getPatients, getDoctorProfile } from '@/services/api'
 
 // 登录
-const response = await login({ docID: 'DOC001', pass: 'password' })
+const response = await login({ docId: 'DOC001', pass: 'password' })
 localStorage.setItem('token', response.token)
 
 // 获取患者列表
@@ -149,18 +161,12 @@ console.log(patients.patients)
 ```
 
 #### 方式B: 使用Composable(推荐)
+
 ```typescript
 import { useDoctorData } from '@/composables/useDoctorData'
 
-const {
-  doctorProfile,
-  shifts,
-  patients,
-  addNumberRequests,
-  notifications,
-  loading,
-  error
-} = useDoctorData()
+const { doctorProfile, shifts, patients, addNumberRequests, notifications, loading, error } =
+  useDoctorData()
 
 // 数据会自动加载和订阅
 ```
@@ -172,7 +178,7 @@ import {
   transformPatient,
   transformAddNumberRequest,
   transformScheduleToWeekTable,
-  TIME_PERIOD_MAP
+  TIME_PERIOD_MAP,
 } from '@/utils/dataTransform'
 
 // 转换患者数据
@@ -184,7 +190,7 @@ const apiShifts = await getShifts('DOC001')
 const { scheduleData, weekDays, scheduleMap } = transformScheduleToWeekTable(apiShifts.shifts)
 
 // 时段编号转文本
-const timePeriodText = TIME_PERIOD_MAP[1]  // "上午"
+const timePeriodText = TIME_PERIOD_MAP[1] // "上午"
 ```
 
 ### 3. SSE连接示例
@@ -201,7 +207,7 @@ const eventSource = subscribeAddNumberNotifications(
   },
   (error) => {
     console.error('SSE错误:', error)
-  }
+  },
 )
 
 // 组件卸载时关闭连接
@@ -243,6 +249,7 @@ onUnmounted(() => {
 Home.vue是主要的工作台页面,需要将模拟数据替换为真实API调用:
 
 **需要更新的功能**:
+
 - ✅ 医生个人信息展示(使用 `getDoctorProfile()`)
 - ✅ 排班表显示(使用 `getShifts()` + `transformScheduleToWeekTable()`)
 - ✅ 患者列表(使用 `getPatients()` + `transformPatient()`)
@@ -253,6 +260,7 @@ Home.vue是主要的工作台页面,需要将模拟数据替换为真实API调�
 - ✅ 班次变更申请(使用 `submitScheduleChangeRequest()`)
 
 **建议实施方式**:
+
 ```vue
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
@@ -261,23 +269,17 @@ import {
   transformScheduleToWeekTable,
   transformPatient,
   transformAddNumberRequest,
-  transformNotification
+  transformNotification,
 } from '@/utils/dataTransform'
 import {
   submitAddNumberResult,
   updatePatientStatus,
-  submitScheduleChangeRequest
+  submitScheduleChangeRequest,
 } from '@/services/api'
 
 // 使用composable获取数据
-const {
-  doctorProfile,
-  shifts,
-  patients,
-  addNumberRequests,
-  notifications,
-  loading
-} = useDoctorData()
+const { doctorProfile, shifts, patients, addNumberRequests, notifications, loading } =
+  useDoctorData()
 
 // 转换数据为前端格式
 const scheduleTransform = computed(() => transformScheduleToWeekTable(shifts.value))
@@ -297,12 +299,15 @@ const notificationList = computed(() => notifications.value.map(transformNotific
 根据 `API_CONFLICT_REPORT.md` 中的建议,与后端团队协调以下优化:
 
 #### 2.1 患者列表增加科室字段
+
 **当前**: `GET /doctor/patients` 未返回科室信息
 **建议**: 增加 `department` 字段
 
 #### 2.2 排班数据增加排班ID
+
 **当前**: 排班列表缺少 `scheduleId`
 **建议**: 返回格式改为:
+
 ```json
 {
   "shifts": [
@@ -311,14 +316,16 @@ const notificationList = computed(() => notifications.value.map(transformNotific
       "date": "2025-10-23",
       "docName": "张医生",
       "timePeriod": 1,
-      "docID": "DOC001"
+      "docId": "DOC001"
     }
   ]
 }
 ```
 
 #### 2.3 时段编号规范文档化
+
 **建议**: 在API文档中明确标注:
+
 - 1 = 上午 (8:00-12:00)
 - 2 = 下午 (14:00-18:00)
 - 3 = 晚上 (19:00-21:00)
@@ -379,6 +386,7 @@ const notificationList = computed(() => notifications.value.map(transformNotific
 ## 📞 联系与支持
 
 如有问题,请联系:
+
 - 项目文档: `README.md`
 - API文档: `医院挂号系统-医生端.apifox.json`
 - 冲突报告: `API_CONFLICT_REPORT.md`

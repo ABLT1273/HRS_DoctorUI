@@ -91,11 +91,11 @@ export interface NotificationsResponse {
 
 // 医生个人信息
 export interface DoctorProfile {
-  doctorAccount: string
+  doctorId: string
   name: string
   department: string
-  clinicId?: string
-  title?: string
+  clinicId: string
+  title: string
 }
 
 export interface DoctorProfileResponse {

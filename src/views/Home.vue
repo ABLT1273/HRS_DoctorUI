@@ -372,9 +372,7 @@ const {
 const storedDoctorAccount = ref(localStorage.getItem('doctorAccount') ?? '')
 
 const displayName = computed(() => doctorProfile.value?.name || storedDoctorAccount.value || '医生')
-const doctorAccountDisplay = computed(
-  () => doctorProfile.value?.doctorAccount || storedDoctorAccount.value || '—',
-)
+const doctorAccountDisplay = computed(() => storedDoctorAccount.value || '—')
 const doctorDepartment = computed(() => doctorProfile.value?.department || '—')
 const doctorTitle = computed(() => doctorProfile.value?.title || '—')
 const doctorClinic = computed(() => doctorProfile.value?.clinicId || '')
