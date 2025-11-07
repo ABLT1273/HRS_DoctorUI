@@ -13,6 +13,7 @@ import type {
   NotificationsResponse,
   DoctorProfileResponse,
   ScheduleChangeRequest,
+  ScheduleChangeResponse,
   PatientStatusRequest,
   SSEMessageHandler,
   SSEErrorHandler,
@@ -220,8 +221,11 @@ export async function getDoctorProfile(docId: string): Promise<DoctorProfileResp
  */
 export async function submitScheduleChangeRequest(
   request: ScheduleChangeRequest,
-): Promise<ApiResponse> {
-  const response = await apiClient.post<ApiResponse>('/schedule_change_request', request)
+): Promise<ApiResponse<ScheduleChangeResponse>> {
+  const response = await apiClient.post<ApiResponse<ScheduleChangeResponse>>(
+    '/schedule_change_request',
+    request,
+  )
   return response.data
 }
 
