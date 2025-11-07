@@ -231,8 +231,8 @@ API提供的字段完全满足前端需求,直接映射即可:
 ```typescript
 {
   docId: "DOC001",
-  originalScheduleId: "SCHEDULE001",  // 原班次ID
-  changeType: 1,                       // 0=调班, 1=请假
+  originalTime: "2025-10-22_1",  // 原班次时间
+  changeType: 1,                       // 0=调到空班, 1=请假, 2=与医生换班
   targetDate: "2025-10-23",            // 调班时需要
   timePeriod: 1,                       // 调班时需要
   targetDoctorId: "DOC002",            // 调班时可选
