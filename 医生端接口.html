@@ -95822,7 +95822,7 @@
                   summary: '医生班次变更申请',
                   deprecated: false,
                   description:
-                    '提交班次变更申请\n输入：医生ID，请求调整的原班次ID，调整类型（0：调班，1：请假），当调班：目标班次时间（日期、时段编号、目标医生ID（可空））（可选），调整原因文本；当请假：请假时长（int天数）、调整原因文本',
+                    '提交班次变更申请\n输入：医生ID，请求调整的原班次ID，调整类型（0：调到空班，1：请假，2：与某医生换班），当调到空班或换班：目标班次时间（日期、时段编号），换班时需要目标医生ID，调整原因文本；当请假：请假天数、调整原因文本\n返回：包含完整的变更申请信息',
                   tags: ['医生端'],
                   parameters: [
                     {
@@ -95849,7 +95849,7 @@
                             leaveTimeLength: { type: 'integer' },
                             reason: { type: 'string' },
                           },
-                          required: ['docId', 'originalTime', 'changeType', 'leaveTimeLength'],
+                          required: ['docId', 'originalTime', 'changeType'],
                         },
                         examples: {},
                       },
@@ -95862,8 +95862,25 @@
                         'application/json': {
                           schema: {
                             type: 'object',
-                            properties: { code: { type: 'integer' }, msg: { type: 'string' } },
-                            required: ['code', 'msg'],
+                            properties: {
+                              code: { type: 'integer' },
+                              msg: { type: 'string' },
+                              data: {
+                                type: 'object',
+                                properties: {
+                                  docId: { type: 'string', description: '本医生ID' },
+                                  originalTime: { type: 'string', description: '原班次时间，格式: 2025-10-22_1' },
+                                  changeType: { type: 'integer', description: '0=调到空班, 1=请假, 2=与某医生换班' },
+                                  targetDate: { type: 'string', format: 'date', description: 'changeType=0/2时需要' },
+                                  timePeriod: { type: 'integer', description: 'changeType=0/2时需要' },
+                                  targetDoctorId: { type: 'string', description: 'changeType=2时需要' },
+                                  leaveTimeLength: { type: 'integer', description: 'changeType=1时需要，表示请假天数' },
+                                  reason: { type: 'string', description: '变更请求文本' },
+                                },
+                                required: ['docId', 'originalTime', 'changeType'],
+                              },
+                            },
+                            required: ['code', 'msg', 'data'],
                           },
                         },
                       },
