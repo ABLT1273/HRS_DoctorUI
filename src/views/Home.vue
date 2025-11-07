@@ -772,7 +772,7 @@ const submitScheduleAdjust = async () => {
     docId: doctorId.value,
     originalTime: `${originalShift.date}_${originalShift.timePeriod}`,
     changeType: scheduleAdjustForm.type === 'leave' ? 1 : 0,
-    leaveTimeLength: scheduleAdjustForm.type === 'leave' ? scheduleAdjustForm.leaveDays * 8 : 0,
+    leaveTimeLength: scheduleAdjustForm.type === 'leave' ? scheduleAdjustForm.leaveDays : 0,
     reason:
       scheduleAdjustForm.type === 'leave'
         ? scheduleAdjustForm.leaveReason.trim()
