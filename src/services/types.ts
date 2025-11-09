@@ -23,6 +23,7 @@ export interface Shift {
   docName: string
   timePeriod: number // 时间段
   docId: string
+  clinicPlace?: string // 诊室位置
 }
 
 export interface ShiftsResponse {

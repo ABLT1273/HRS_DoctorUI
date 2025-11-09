@@ -365,10 +365,14 @@ const {
   error,
   loadPatients,
   loadShifts,
+  loadAllShifts,
   cleanup,
 } = useDoctorData()
 
 const storedDoctorAccount = ref(localStorage.getItem('doctorAccount') ?? '')
+
+// 用于调班时显示所有医生的排班
+const allShifts = ref<Shift[]>([])
 
 const displayName = computed(() => doctorProfile.value?.name || storedDoctorAccount.value || '医生')
 const doctorIdDisplay = computed(() => doctorProfile.value?.doctorId || doctorId.value || '—')
@@ -528,6 +532,10 @@ const scheduleAdjustForm = reactive({
 
 const miniWeekDays = computed(() => weekDays.value.slice(0, Math.min(7, weekDays.value.length)))
 
+// 为调班对话框创建单独的排班数据转换
+const allScheduleTransform = computed(() => transformScheduleToWeekTable(allShifts.value || []))
+const allScheduleMap = computed(() => allScheduleTransform.value.scheduleMap)
+
 const miniScheduleData = computed<MiniScheduleRow[]>(() =>
   [1, 2, 3].map((timePeriod) => {
     const row: MiniScheduleRow = {
@@ -535,7 +543,7 @@ const miniScheduleData = computed<MiniScheduleRow[]>(() =>
     }
     miniWeekDays.value.forEach(({ prop, date }) => {
       const key = `${date}-${timePeriod}`
-      const shift = scheduleMap.value.get(key)
+      const shift = allScheduleMap.value.get(key)
       row[prop] = shift?.docName ?? ''
     })
     return row
@@ -717,7 +725,7 @@ const resetScheduleAdjustForm = () => {
     : ''
 }
 
-const openScheduleAdjustDialog = () => {
+const openScheduleAdjustDialog = async () => {
   if (!selectedScheduleShift.value) {
     ElMessage.warning('请先在排班表中选择班次')
     return
@@ -727,6 +735,8 @@ const openScheduleAdjustDialog = () => {
     return
   }
   resetScheduleAdjustForm()
+  // 加载所有医生的排班用于调班选择
+  allShifts.value = await loadAllShifts()
   scheduleAdjustDialogVisible.value = true
 }
 
