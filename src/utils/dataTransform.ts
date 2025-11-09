@@ -143,9 +143,9 @@ function getMonday(date: Date): Date {
 export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransformResult {
   console.log('转换排班数据，接收到的shifts:', shifts)
   const scheduleData: WeekScheduleRow[] = [
-    { timeSlot: TIME_PERIOD_DETAIL_MAP[1] },
-    { timeSlot: TIME_PERIOD_DETAIL_MAP[2] },
-    { timeSlot: TIME_PERIOD_DETAIL_MAP[3] },
+    { timeSlot: TIME_PERIOD_DETAIL_MAP[1] || '上午 8:00-12:00' },
+    { timeSlot: TIME_PERIOD_DETAIL_MAP[2] || '下午 14:00-18:00' },
+    { timeSlot: TIME_PERIOD_DETAIL_MAP[3] || '晚上 19:00-21:00' },
   ]
 
   const weekDays: WeekDayColumn[] = []
@@ -173,9 +173,9 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
         date: dateStr,
       })
 
-      scheduleData[0][prop] = ''
-      scheduleData[1][prop] = ''
-      scheduleData[2][prop] = ''
+      scheduleData[0]![prop] = ''
+      scheduleData[1]![prop] = ''
+      scheduleData[2]![prop] = ''
     }
   }
 
@@ -189,8 +189,13 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
     if (column) {
       const rowIndex = shift.timePeriod - 1
       if (rowIndex >= 0 && rowIndex < 3) {
-        console.log(`  -> 填充到 [${rowIndex}][${column.prop}] = ${shift.docName}`)
-        scheduleData[rowIndex][column.prop] = shift.docName
+        // 构建单元格内容：医生名 + 诊室位置
+        let cellContent = shift.docName
+        if (shift.clinicPlace) {
+          cellContent += `\n${shift.clinicPlace}`
+        }
+        console.log(`  -> 填充到 [${rowIndex}][${column.prop}] = ${cellContent}`)
+        scheduleData[rowIndex]![column.prop] = cellContent
       }
     }
   }
@@ -223,5 +228,5 @@ export function getDateFromWeekday(weekday: string, weekOffset: number = 0): str
   const targetDate = new Date(monday)
   targetDate.setDate(monday.getDate() + weekOffset * 7 + dayOffset)
 
-  return targetDate.toISOString().split('T')[0]
+  return targetDate.toISOString().split('T')[0] || ''
 }

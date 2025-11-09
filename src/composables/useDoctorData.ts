@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
+  getSelfShifts,
   getShifts,
   getPatients,
   getDoctorProfile,
@@ -44,17 +45,29 @@ export function useDoctorData() {
     }
   }
 
-  // 加载排班列表
+  // 加载当前医生的排班列表（用于初始化主排班表）
   async function loadShifts() {
     try {
       loading.value = true
-      const response = await getShifts(doctorId.value)
+      const response = await getSelfShifts()
       shifts.value = response.shifts
     } catch (err: any) {
       error.value = err.message || '加载排班数据失败'
       console.error('加载排班数据失败:', err)
     } finally {
       loading.value = false
+    }
+  }
+
+  // 加载所有医生的排班列表（用于调班时查看可用班次）
+  async function loadAllShifts(docId?: string): Promise<Shift[]> {
+    try {
+      const response = await getShifts(docId)
+      return response.shifts
+    } catch (err: any) {
+      error.value = err.message || '加载所有排班数据失败'
+      console.error('加载所有排班数据失败:', err)
+      return []
     }
   }
 
@@ -150,6 +163,7 @@ export function useDoctorData() {
     error,
     loadDoctorProfile,
     loadShifts,
+    loadAllShifts,
     loadPatients,
     initialize,
     cleanup,
