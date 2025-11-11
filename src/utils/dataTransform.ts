@@ -54,6 +54,7 @@ export interface FrontendPatient {
   date: string
   shift: string
   timePeriod: number
+  patientStatus: number // 0=已挂号, 1=就诊中, 2=已就诊
 }
 
 export function transformPatient(apiPatient: Patient): FrontendPatient {
@@ -66,6 +67,7 @@ export function transformPatient(apiPatient: Patient): FrontendPatient {
     date: apiPatient.scheduleDate,
     shift: TIME_PERIOD_MAP[apiPatient.timePeriod] || '未知',
     timePeriod: apiPatient.timePeriod,
+    patientStatus: apiPatient.patientStatus ?? 0, // 默认为已挂号状态
   }
 }
 
