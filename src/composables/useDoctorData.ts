@@ -47,9 +47,10 @@ export function useDoctorData() {
 
   // 加载当前医生的排班列表（用于初始化主排班表）
   async function loadShifts() {
+    if (!doctorId.value) return
     try {
       loading.value = true
-      const response = await getSelfShifts()
+      const response = await getSelfShifts(doctorId.value)
       shifts.value = response.shifts
     } catch (err: any) {
       error.value = err.message || '加载排班数据失败'

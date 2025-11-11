@@ -134,8 +134,10 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
  * 获取当前医生的排班信息（仅返回当前医生的排班）
  * GET /doctor/selfshifts
  */
-export async function getSelfShifts(): Promise<ShiftsResponse> {
-  const response = await apiClient.get<ApiResponse<ShiftsResponse>>('/selfshifts')
+export async function getSelfShifts(docId?: string): Promise<ShiftsResponse> {
+  const response = await apiClient.get<ApiResponse<ShiftsResponse>>('/selfshifts', {
+    params: { docId },
+  })
   const data = response.data as any
   console.log('当前医生排班接口原始响应:', data)
   // 处理后端返回的嵌套结构 { code, msg, data: { shifts: [...] } }
