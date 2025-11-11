@@ -104,9 +104,30 @@
                 </el-table-column>
                 <el-table-column label="操作" width="100">
                   <template #default="scope">
-                    <el-button size="small" type="primary" @click="handleDiagnosis(scope.$index)"
-                      >接诊</el-button
+                    <el-button
+                      v-if="scope.row.patientStatus === 0"
+                      size="small"
+                      type="primary"
+                      @click="handleDiagnosis(scope.$index)"
                     >
+                      接诊
+                    </el-button>
+                    <el-button
+                      v-else-if="scope.row.patientStatus === 1"
+                      size="small"
+                      type="success"
+                      @click="handleComplete(scope.$index)"
+                    >
+                      完成
+                    </el-button>
+                    <el-button
+                      v-else-if="scope.row.patientStatus === 2"
+                      size="small"
+                      type="info"
+                      disabled
+                    >
+                      已结束
+                    </el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -501,6 +522,9 @@ const filteredPatientEntries = computed(() => {
     result = result.filter((entry) => entry.display.name.toLowerCase().includes(keyword))
   }
 
+  // 按患者状态排序：已挂号(0) > 就诊中(1) > 已就诊(2)
+  result = result.sort((a, b) => a.display.patientStatus - b.display.patientStatus)
+
   return result
 })
 
@@ -893,12 +917,45 @@ const handleDiagnosis = async (index: number) => {
     }
     ElMessage.success(`已开始接诊 ${entry.display.name}`)
     await loadPatients()
-    await openRegisterRecordsDialog(entry)
   } catch (err) {
     if (err instanceof Error) {
       ElMessage.error(err.message)
     } else {
       ElMessage.error('接诊失败')
+    }
+  }
+}
+
+const handleComplete = async (index: number) => {
+  if (!doctorId.value) {
+    ElMessage.error('医生信息已失效，请重新登录')
+    router.push('/login')
+    return
+  }
+
+  const entry = filteredPatientEntries.value[index]
+  if (!entry) {
+    ElMessage.warning('未找到患者信息')
+    return
+  }
+
+  try {
+    const response = await updatePatientStatus({
+      doctorId: doctorId.value,
+      registerId: entry.display.registerId,
+      doctorStatus: 0,
+      patientStatus: 2,
+    })
+    if (response.code !== 200) {
+      throw new Error(response.msg || '更新患者状态失败')
+    }
+    ElMessage.success(`${entry.display.name} 已完成就诊`)
+    await loadPatients()
+  } catch (err) {
+    if (err instanceof Error) {
+      ElMessage.error(err.message)
+    } else {
+      ElMessage.error('完成就诊失败')
     }
   }
 }

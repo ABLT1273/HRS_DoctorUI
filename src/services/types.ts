@@ -38,6 +38,7 @@ export interface Patient {
   age: number
   scheduleDate: string // ISO date format
   timePeriod: number
+  patientStatus?: number // 0=已挂号, 1=就诊中, 2=已就诊
 }
 
 export interface PatientsResponse {
@@ -132,8 +133,8 @@ export interface ScheduleChangeResponse {
 export interface PatientStatusRequest {
   doctorId: string
   registerId: string
-  doctorStatus: number // 0=待诊, 1=已诊
-  patientStatus: number // 0=未到诊, 1=到诊未叫号, 2=已叫号
+  doctorStatus: number // 0=空闲, 1=坐诊
+  patientStatus: number // 0=已挂号, 1=就诊中, 2=已就诊
 }
 
 // SSE 回调类型
