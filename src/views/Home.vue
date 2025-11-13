@@ -778,7 +778,7 @@ const openScheduleAdjustDialog = async () => {
   }
   resetScheduleAdjustForm()
   // 加载所有医生的排班用于调班选择
-  allShifts.value = await loadAllShifts()
+  allShifts.value = await loadAllShifts(doctorId.value)
   scheduleAdjustDialogVisible.value = true
 }
 
@@ -1063,18 +1063,18 @@ onMounted(() => {
 }
 
 /* 班次单元格样式 - 统一的背景色突出显示 */
-:deep(.shift-cell) {
+:deep(.el-table .shift-cell) {
   background-color: rgba(64, 158, 255, 0.25) !important;
-  font-weight: bold;
-  color: #409eff;
-  cursor: pointer;
+  font-weight: bold !important;
+  color: #409eff !important;
+  cursor: pointer !important;
 }
 
 /* 主排班表选中的单元格样式 */
-:deep(.selected-main-schedule-cell) {
+:deep(.el-table .selected-main-schedule-cell) {
   background-color: #409eff !important;
   color: white !important;
-  font-weight: bold;
+  font-weight: bold !important;
   border: 2px solid #1890ff !important;
   box-shadow: 0 0 10px rgba(64, 158, 255, 0.5) !important;
 }
