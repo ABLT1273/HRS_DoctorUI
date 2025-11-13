@@ -47,10 +47,8 @@
               >
                 <template #header>
                   <div class="custom-header">
-                    <div class="week-date" v-if="shouldShowWeekDate(day, index)">
-                      {{ day.weekDateRange }}
-                    </div>
                     <div class="week-label">{{ day.label }}</div>
+                    <div class="week-date">{{ day.dayDate }}</div>
                   </div>
                 </template>
               </el-table-column>
@@ -1032,13 +1030,6 @@ const handleTabSelect = (index: string) => {
   activeTab.value = index as 'duty' | 'personal'
 }
 
-// 判断是否应该显示周日期标签（只在每周第一列显示）
-const shouldShowWeekDate = (day: { weekLabel?: string }, index: number): boolean => {
-  if (index === 0) return true
-  const prevDay = weekDays.value[index - 1]
-  return prevDay?.weekLabel !== day.weekLabel
-}
-
 watch(error, (message) => {
   if (message) {
     ElMessage.error(message)
@@ -1470,22 +1461,20 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-}
-
-.week-date {
-  font-size: 12px;
-  color: #909399;
-  font-weight: normal;
-  padding: 2px 8px;
-  background-color: #f0f2f5;
-  border-radius: 3px;
+  gap: 2px;
+  line-height: 1.4;
 }
 
 .week-label {
   font-size: 14px;
   font-weight: 500;
   color: #303133;
+}
+
+.week-date {
+  font-size: 12px;
+  color: #909399;
+  font-weight: normal;
 }
 
 /* 病历单对话框样式 */
