@@ -1465,12 +1465,12 @@ onMounted(() => {
 
 /* 调班对话框 - 可用的排班单元格 */
 :deep(.el-table__body .available-schedule-cell) {
-  background-color: #f0f9ff !important;
+  background-color: transparent !important;
   cursor: pointer !important;
 }
 
 :deep(.el-table__body .available-schedule-cell:hover) {
-  background-color: #bae7ff !important;
+  background-color: rgba(186, 231, 255, 0.3) !important;
 }
 
 /* 自定义表头样式 */
