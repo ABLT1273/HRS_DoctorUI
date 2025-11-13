@@ -25,6 +25,9 @@ export function useDoctorData() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  // 本地患者状态缓存 (registerId -> patientStatus)
+  const patientStatusCache = new Map<string, number>()
+
   // SSE 连接
   let addNumberEventSource: EventSource | null = null
   let notificationEventSource: EventSource | null = null
@@ -79,13 +82,39 @@ export function useDoctorData() {
     try {
       loading.value = true
       const response = await getPatients(doctorId.value)
-      patients.value = response.patients
+
+      // 合并本地状态缓存到新加载的患者数据
+      patients.value = response.patients.map((patient) => {
+        const cachedStatus = patientStatusCache.get(patient.registerId)
+        if (cachedStatus !== undefined) {
+          return { ...patient, patientStatus: cachedStatus }
+        }
+        return patient
+      })
     } catch (err: any) {
       error.value = err.message || '加载患者列表失败'
       console.error('加载患者列表失败:', err)
     } finally {
       loading.value = false
     }
+  }
+
+  // 更新患者状态（同时更新缓存）
+  function updatePatientStatusLocal(registerId: string, status: number) {
+    patientStatusCache.set(registerId, status)
+
+    const patientIndex = patients.value.findIndex((p) => p.registerId === registerId)
+    if (patientIndex !== -1) {
+      patients.value[patientIndex] = {
+        ...patients.value[patientIndex]!,
+        patientStatus: status,
+      }
+    }
+  }
+
+  // 清除患者状态缓存（当患者完成就诊后可选择性清除）
+  function clearPatientStatus(registerId: string) {
+    patientStatusCache.delete(registerId)
   }
 
   // 订阅加号申请通知 (SSE)
@@ -166,6 +195,8 @@ export function useDoctorData() {
     loadShifts,
     loadAllShifts,
     loadPatients,
+    updatePatientStatusLocal,
+    clearPatientStatus,
     initialize,
     cleanup,
   }
