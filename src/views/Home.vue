@@ -194,7 +194,6 @@
               <el-descriptions-item label="账号">{{ doctorAccountDisplay }}</el-descriptions-item>
               <el-descriptions-item label="姓名">{{ displayName }}</el-descriptions-item>
               <el-descriptions-item label="科室">{{ doctorDepartment }}</el-descriptions-item>
-              <el-descriptions-item label="诊室">{{ doctorClinic }}</el-descriptions-item>
               <el-descriptions-item label="职称">{{ doctorTitle }}</el-descriptions-item>
             </el-descriptions>
           </div>
@@ -400,7 +399,6 @@ const doctorIdDisplay = computed(() => doctorProfile.value?.doctorId || doctorId
 const doctorAccountDisplay = computed(() => storedDoctorAccount.value || '—')
 const doctorDepartment = computed(() => doctorProfile.value?.department || '—')
 const doctorTitle = computed(() => doctorProfile.value?.title || '—')
-const doctorClinic = computed(() => doctorProfile.value?.clinicId || '—')
 
 const scheduleTransform = computed(() => transformScheduleToWeekTable(shifts.value || []))
 const scheduleData = computed(() => scheduleTransform.value.scheduleData)

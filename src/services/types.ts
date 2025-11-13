@@ -97,7 +97,6 @@ export interface DoctorProfile {
   doctorAccount?: string
   name: string
   department: string
-  clinicId: string
   title: string
 }
 
