@@ -608,10 +608,13 @@ function getTimePeriodFromSimpleSlot(slot: string): number | null {
   return TIME_PERIOD_REVERSE_MAP[slot] ?? null
 }
 
-const getCellClassName = (
-  row: WeekScheduleRow,
-  column: { property: string | undefined } | undefined,
-): string => {
+const getCellClassName = ({
+  row,
+  column,
+}: {
+  row: WeekScheduleRow
+  column: { property: string | undefined } | undefined
+}): string => {
   if (!column) {
     return ''
   }
@@ -718,10 +721,13 @@ const handleScheduleCellClick = (
   }
 }
 
-const getMiniScheduleCellClass = (
-  row: MiniScheduleRow,
-  column: { property: string | undefined } | undefined,
-): string => {
+const getMiniScheduleCellClass = ({
+  row,
+  column,
+}: {
+  row: MiniScheduleRow
+  column: { property: string | undefined } | undefined
+}): string => {
   if (!column) {
     return ''
   }
@@ -1063,20 +1069,26 @@ onMounted(() => {
 }
 
 /* 班次单元格样式 - 统一的背景色突出显示 */
-:deep(.el-table .shift-cell) {
+:deep(.el-table__body .shift-cell) {
   background-color: rgba(64, 158, 255, 0.25) !important;
-  font-weight: bold !important;
-  color: #409eff !important;
   cursor: pointer !important;
 }
 
-/* 主排班表选中的单元格样式 */
-:deep(.el-table .selected-main-schedule-cell) {
-  background-color: #409eff !important;
-  color: white !important;
+:deep(.el-table__body .shift-cell .cell) {
   font-weight: bold !important;
+  color: #409eff !important;
+}
+
+/* 主排班表选中的单元格样式 */
+:deep(.el-table__body .selected-main-schedule-cell) {
+  background-color: #409eff !important;
   border: 2px solid #1890ff !important;
   box-shadow: 0 0 10px rgba(64, 158, 255, 0.5) !important;
+}
+
+:deep(.el-table__body .selected-main-schedule-cell .cell) {
+  color: white !important;
+  font-weight: bold !important;
 }
 
 .el-container {
@@ -1424,20 +1436,40 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* 已选择的排班单元格 */
-:deep(.selected-schedule-cell) {
+/* 调班对话框 - 医生自己值班的单元格样式 */
+:deep(.el-table__body .doctor-duty-cell) {
+  background-color: rgba(64, 158, 255, 0.2) !important;
+  cursor: pointer !important;
+}
+
+:deep(.el-table__body .doctor-duty-cell .cell) {
+  font-weight: bold !important;
+  color: #409eff !important;
+}
+
+/* 调班对话框 - 其他医生值班的单元格样式 */
+:deep(.el-table__body .other-duty-cell) {
+  background-color: rgba(103, 194, 58, 0.1) !important;
+}
+
+/* 调班对话框 - 已选择的排班单元格 */
+:deep(.el-table__body .selected-schedule-cell) {
   background-color: #1890ff !important;
+  border: 2px solid #0d5eaf !important;
+}
+
+:deep(.el-table__body .selected-schedule-cell .cell) {
   color: white !important;
-  font-weight: bold;
+  font-weight: bold !important;
 }
 
-/* 可用的排班单元格 */
-:deep(.available-schedule-cell) {
+/* 调班对话框 - 可用的排班单元格 */
+:deep(.el-table__body .available-schedule-cell) {
   background-color: #f0f9ff !important;
-  cursor: pointer;
+  cursor: pointer !important;
 }
 
-:deep(.available-schedule-cell:hover) {
+:deep(.el-table__body .available-schedule-cell:hover) {
   background-color: #bae7ff !important;
 }
 
