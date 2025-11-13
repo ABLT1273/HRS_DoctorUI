@@ -82,6 +82,13 @@
                   >
                     当前排班
                   </el-button>
+                  <el-button
+                    :type="forceMode ? 'danger' : 'warning'"
+                    @click="forceMode = !forceMode"
+                    style="margin-left: 10px"
+                  >
+                    {{ forceMode ? '✓ 强制模式' : '强制接诊' }}
+                  </el-button>
                 </div>
                 <div class="right-controls">
                   <el-input
@@ -120,7 +127,10 @@
                       v-if="(scope.row.patientStatus ?? 0) === 0"
                       size="small"
                       type="primary"
-                      :disabled="!canDiagnosePatient(scope.row.timePeriod, scope.row.date)"
+                      :disabled="
+                        hasPatientInDiagnosis ||
+                        !canDiagnosePatient(scope.row.timePeriod, scope.row.date)
+                      "
                       @click="handleDiagnosis(scope.$index)"
                     >
                       接诊
@@ -482,6 +492,15 @@ const notificationList = computed<FrontendNotification[]>(() =>
 
 const showCurrentShift = ref(false)
 const searchName = ref('')
+const forceMode = ref(false) // 强制接诊模式（测试用）
+
+/**
+ * 检查是否有患者正在就诊中
+ * 医生一次只能接诊一个患者
+ */
+const hasPatientInDiagnosis = computed(() => {
+  return patients.value.some((patient) => patient.patientStatus === 1)
+})
 
 /**
  * 获取当前时间所在的时段
@@ -505,6 +524,11 @@ function getCurrentTimePeriod(): number | null {
  * @returns true 表示可以接诊，false 表示不可接诊
  */
 function canDiagnosePatient(patientTimePeriod: number, patientDate: string): boolean {
+  // 强制模式下无视所有时间限制
+  if (forceMode.value) {
+    return true
+  }
+
   const currentPeriod = getCurrentTimePeriod()
   if (currentPeriod === null) {
     return false // 不在任何就诊时段内
@@ -1046,10 +1070,21 @@ const handleDiagnosis = async (index: number) => {
     return
   }
 
-  // 检查是否在就诊时间内
-  if (!canDiagnosePatient(entry.display.timePeriod, entry.display.date)) {
+  // 检查是否已有患者正在就诊中（强制模式下跳过检查）
+  if (!forceMode.value && hasPatientInDiagnosis.value) {
+    ElMessage.warning('当前已有患者正在就诊中，请先完成当前患者的就诊')
+    return
+  }
+
+  // 检查是否在就诊时间内（强制模式下跳过检查）
+  if (!forceMode.value && !canDiagnosePatient(entry.display.timePeriod, entry.display.date)) {
     ElMessage.warning('当前不在就诊时间')
     return
+  }
+
+  // 强制模式提示
+  if (forceMode.value) {
+    console.log('⚠️ 强制接诊模式：已跳过所有限制检查')
   }
 
   try {
