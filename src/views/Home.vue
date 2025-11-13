@@ -115,7 +115,10 @@
                       v-if="(scope.row.patientStatus ?? 0) === 0"
                       size="small"
                       type="primary"
-                      :disabled="!canDiagnosePatient(scope.row.timePeriod, scope.row.date)"
+                      :disabled="
+                        hasPatientInDiagnosis ||
+                        !canDiagnosePatient(scope.row.timePeriod, scope.row.date)
+                      "
                       @click="handleDiagnosis(scope.$index)"
                     >
                       接诊
@@ -460,6 +463,14 @@ const notificationList = computed<FrontendNotification[]>(() =>
 const showCurrentShift = ref(false)
 const searchName = ref('')
 const forceMode = ref(false) // 强制接诊模式（测试用）
+
+/**
+ * 检查是否有患者正在就诊中
+ * 医生一次只能接诊一个患者
+ */
+const hasPatientInDiagnosis = computed(() => {
+  return patients.value.some((patient) => patient.patientStatus === 1)
+})
 
 /**
  * 获取当前时间所在的时段
@@ -981,6 +992,12 @@ const handleDiagnosis = async (index: number) => {
     return
   }
 
+  // 检查是否已有患者正在就诊中（强制模式下跳过检查）
+  if (!forceMode.value && hasPatientInDiagnosis.value) {
+    ElMessage.warning('当前已有患者正在就诊中，请先完成当前患者的就诊')
+    return
+  }
+
   // 检查是否在就诊时间内（强制模式下跳过检查）
   if (!forceMode.value && !canDiagnosePatient(entry.display.timePeriod, entry.display.date)) {
     ElMessage.warning('当前不在就诊时间')
@@ -989,7 +1006,7 @@ const handleDiagnosis = async (index: number) => {
 
   // 强制模式提示
   if (forceMode.value) {
-    console.log('⚠️ 强制接诊模式：已跳过时间限制检查')
+    console.log('⚠️ 强制接诊模式：已跳过所有限制检查')
   }
 
   try {
