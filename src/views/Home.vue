@@ -44,8 +44,16 @@
                 v-for="(day, index) in weekDays"
                 :key="index"
                 :prop="day.prop"
-                :label="day.label"
-              />
+              >
+                <template #header>
+                  <div class="custom-header">
+                    <div class="week-date" v-if="shouldShowWeekDate(day, index)">
+                      {{ day.weekDateRange }}
+                    </div>
+                    <div class="week-label">{{ day.label }}</div>
+                  </div>
+                </template>
+              </el-table-column>
             </el-table>
             <div class="schedule-action-area">
               <el-button
@@ -101,6 +109,13 @@
                 <el-table-column prop="department" label="科室" width="120" />
                 <el-table-column label="预约时段">
                   <template #default="scope"> {{ scope.row.date }} {{ scope.row.shift }} </template>
+                </el-table-column>
+                <el-table-column label="信息" width="100">
+                  <template #default="scope">
+                    <el-button size="small" @click="handleViewPatientInfo(scope.$index)">
+                      查看
+                    </el-button>
+                  </template>
                 </el-table-column>
                 <el-table-column label="操作" width="100">
                   <template #default="scope">
@@ -281,31 +296,46 @@
     </el-dialog>
 
     <el-dialog
-      v-model="registerRecordsDialogVisible"
-      :title="`挂号记录 - ${registerRecordPatientName || ''}`"
-      width="700px"
-      @close="closeRegisterRecordsDialog"
+      v-model="patientInfoDialogVisible"
+      :title="`患者病历单 - ${currentPatientInfo.name || ''}`"
+      width="800px"
+      @close="closePatientInfoDialog"
     >
-      <template v-if="registerRecords.length">
-        <el-table :data="registerRecords" style="width: 100%" v-loading="registerRecordsLoading">
-          <el-table-column prop="registerId" label="挂号号" width="160" />
-          <el-table-column prop="registerTime" label="挂号时间">
-            <template #default="{ row }">
-              {{ formatRecordTime(row.registerTime) }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="department" label="科室" width="120">
-            <template #default="{ row }">{{ row.department || '—' }}</template>
-          </el-table-column>
-          <el-table-column prop="scheduleDate" label="就诊日期" width="140">
-            <template #default="{ row }">{{ row.scheduleDate || '—' }}</template>
-          </el-table-column>
-        </el-table>
-      </template>
-      <template v-else>
-        <el-empty v-if="!registerRecordsLoading" description="暂无挂号记录" />
-        <div v-else class="register-loading">正在加载...</div>
-      </template>
+      <div v-loading="patientInfoLoading" class="patient-info-container">
+        <!-- 基本信息区域 -->
+        <div class="basic-info-section">
+          <h4>基本信息</h4>
+          <el-descriptions :column="3" border>
+            <el-descriptions-item label="姓名">{{ currentPatientInfo.name }}</el-descriptions-item>
+            <el-descriptions-item label="性别">{{ currentPatientInfo.gender }}</el-descriptions-item>
+            <el-descriptions-item label="年龄">{{ currentPatientInfo.age }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <!-- 就诊记录区域 -->
+        <div class="records-section">
+          <h4>就诊记录</h4>
+          <template v-if="registerRecords.length">
+            <el-table :data="registerRecords" style="width: 100%" border>
+              <el-table-column prop="registerId" label="挂号号" width="160" />
+              <el-table-column prop="registerTime" label="挂号时间">
+                <template #default="{ row }">
+                  {{ formatRecordTime(row.registerTime) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="department" label="科室" width="120">
+                <template #default="{ row }">{{ row.department || '—' }}</template>
+              </el-table-column>
+              <el-table-column prop="scheduleDate" label="就诊日期" width="140">
+                <template #default="{ row }">{{ row.scheduleDate || '—' }}</template>
+              </el-table-column>
+            </el-table>
+          </template>
+          <template v-else>
+            <el-empty v-if="!patientInfoLoading" description="暂无就诊记录" />
+          </template>
+        </div>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -858,16 +888,33 @@ const decideAddNumber = async (request: AddNumberApplication, approved: boolean)
   }
 }
 
-const registerRecordsDialogVisible = ref(false)
-const registerRecordsLoading = ref(false)
+const patientInfoDialogVisible = ref(false)
+const patientInfoLoading = ref(false)
 const registerRecords = ref<RegisterRecord[]>([])
-const registerRecordPatientName = ref('')
+const currentPatientInfo = ref({
+  name: '',
+  gender: '',
+  age: 0,
+})
 
-const openRegisterRecordsDialog = async (entry: PatientEntry) => {
-  registerRecordsDialogVisible.value = true
-  registerRecordsLoading.value = true
-  registerRecordPatientName.value = entry.display.name
+const handleViewPatientInfo = async (index: number) => {
+  const entry = filteredPatientEntries.value[index]
+  if (!entry) {
+    ElMessage.warning('未找到患者信息')
+    return
+  }
+
+  patientInfoDialogVisible.value = true
+  patientInfoLoading.value = true
   registerRecords.value = []
+
+  // 设置基本信息
+  currentPatientInfo.value = {
+    name: entry.display.name,
+    gender: entry.display.gender,
+    age: entry.display.age,
+  }
+
   try {
     const response = await getRegisterRecords(entry.display.registerId, doctorId.value ?? undefined)
     registerRecords.value = response.records ?? []
@@ -875,17 +922,21 @@ const openRegisterRecordsDialog = async (entry: PatientEntry) => {
     if (err instanceof Error) {
       ElMessage.error(err.message)
     } else {
-      ElMessage.error('获取挂号记录失败')
+      ElMessage.error('获取就诊记录失败')
     }
   } finally {
-    registerRecordsLoading.value = false
+    patientInfoLoading.value = false
   }
 }
 
-const closeRegisterRecordsDialog = () => {
-  registerRecordsDialogVisible.value = false
+const closePatientInfoDialog = () => {
+  patientInfoDialogVisible.value = false
   registerRecords.value = []
-  registerRecordPatientName.value = ''
+  currentPatientInfo.value = {
+    name: '',
+    gender: '',
+    age: 0,
+  }
 }
 
 const formatRecordTime = (value?: string) => (value ? formatDateTime(value) : '—')
@@ -977,6 +1028,13 @@ const logout = () => {
 
 const handleTabSelect = (index: string) => {
   activeTab.value = index as 'duty' | 'personal'
+}
+
+// 判断是否应该显示周日期标签（只在每周第一列显示）
+const shouldShowWeekDate = (day: { weekLabel?: string }, index: number): boolean => {
+  if (index === 0) return true
+  const prevDay = weekDays.value[index - 1]
+  return prevDay?.weekLabel !== day.weekLabel
 }
 
 watch(error, (message) => {
@@ -1403,5 +1461,60 @@ onMounted(() => {
 
 :deep(.available-schedule-cell:hover) {
   background-color: #bae7ff !important;
+}
+
+/* 自定义表头样式 */
+.custom-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.week-date {
+  font-size: 12px;
+  color: #909399;
+  font-weight: normal;
+  padding: 2px 8px;
+  background-color: #f0f2f5;
+  border-radius: 3px;
+}
+
+.week-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+/* 病历单对话框样式 */
+.patient-info-container {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.basic-info-section {
+  margin-bottom: 30px;
+}
+
+.basic-info-section h4 {
+  margin: 0 0 15px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #409eff;
+  color: #303133;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.records-section h4 {
+  margin: 0 0 15px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #409eff;
+  color: #303133;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.records-section {
+  margin-top: 20px;
 }
 </style>
