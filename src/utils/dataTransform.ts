@@ -201,11 +201,8 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
     if (column) {
       const rowIndex = shift.timePeriod - 1
       if (rowIndex >= 0 && rowIndex < 3) {
-        // 构建单元格内容：医生名 + 诊室位置
-        let cellContent = shift.docName
-        if (shift.clinicPlace) {
-          cellContent += `\n${shift.clinicPlace}`
-        }
+        // 只显示诊室位置，不显示医生名
+        const cellContent = shift.clinicPlace || ''
         console.log(`  -> 填充到 [${rowIndex}][${column.prop}] = ${cellContent}`)
         scheduleData[rowIndex]![column.prop] = cellContent
       }

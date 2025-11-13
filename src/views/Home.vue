@@ -32,7 +32,6 @@
               :data="scheduleData"
               border
               style="width: 100%; margin-top: 20px"
-              highlight-current-row
               @cell-click="handleMainScheduleCellClick"
               @cell-mouse-enter="handleCellEnter"
               @cell-mouse-leave="handleCellLeave"
@@ -631,18 +630,16 @@ const getCellClassName = (
 
   const cellValue = row[columnProp]?.trim() ?? ''
 
+  // 所有有内容的格子都应用班次样式
   if (cellValue) {
-    if (currentDoctorName.value && cellValue === currentDoctorName.value) {
-      return 'doctor-duty-cell'
-    }
-    return 'other-duty-cell'
+    return 'shift-cell'
   }
 
   return ''
 }
 
 const handleCellEnter = (_row: unknown, _column: unknown, cell: HTMLElement) => {
-  if (cell.classList.contains('doctor-duty-cell')) {
+  if (cell.classList.contains('shift-cell')) {
     cell.style.cursor = 'pointer'
   }
 }
@@ -668,15 +665,10 @@ const handleMainScheduleCellClick = (
   const mapKey = `${columnInfo.date}-${timePeriod}`
   const shift = scheduleMap.value.get(mapKey)
   const cellValue = row[columnProp]?.trim() ?? ''
-  const assignedDoctor = shift?.docName || cellValue
 
-  if (!assignedDoctor) {
-    ElMessage.warning('该班次暂无医生排班')
-    return
-  }
-
-  if (currentDoctorName.value && assignedDoctor !== currentDoctorName.value) {
-    ElMessage.warning('只能选择自己的班次')
+  // 只要格子里有文字，就可以选中
+  if (!cellValue) {
+    ElMessage.warning('该班次暂无排班')
     return
   }
 
@@ -1070,17 +1062,12 @@ onMounted(() => {
   background-repeat: no-repeat;
 }
 
-/* 医生自己值班的单元格样式 */
-:deep(.doctor-duty-cell) {
-  background-color: rgba(64, 158, 255, 0.2) !important;
+/* 班次单元格样式 - 统一的背景色突出显示 */
+:deep(.shift-cell) {
+  background-color: rgba(64, 158, 255, 0.25) !important;
   font-weight: bold;
   color: #409eff;
   cursor: pointer;
-}
-
-/* 其他医生值班的单元格样式 */
-:deep(.other-duty-cell) {
-  background-color: rgba(103, 194, 58, 0.1) !important;
 }
 
 /* 主排班表选中的单元格样式 */
