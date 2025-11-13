@@ -398,6 +398,8 @@ const {
   loadPatients,
   loadShifts,
   loadAllShifts,
+  updatePatientStatusLocal,
+  clearPatientStatus,
   cleanup,
 } = useDoctorData()
 
@@ -1027,20 +1029,11 @@ const handleDiagnosis = async (index: number) => {
       throw new Error(response.msg || '更新患者状态失败')
     }
 
-    // 立即更新本地患者状态，确保UI即时响应
-    const patientIndex = patients.value.findIndex(
-      (p) => p.registerId === entry.display.registerId,
-    )
-    if (patientIndex !== -1) {
-      // 创建新对象以确保触发响应式更新
-      patients.value[patientIndex] = {
-        ...patients.value[patientIndex]!,
-        patientStatus: 1,
-      }
-    }
+    // 立即更新本地患者状态和缓存，确保UI即时响应
+    updatePatientStatusLocal(entry.display.registerId, 1)
 
     ElMessage.success(`已开始接诊 ${entry.display.name}`)
-    // 重新加载患者列表以确保数据同步
+    // 重新加载患者列表，缓存的状态会自动合并
     await loadPatients()
   } catch (err) {
     console.error('接诊失败:', err)
@@ -1083,21 +1076,15 @@ const handleComplete = async (index: number) => {
       throw new Error(response.msg || '更新患者状态失败')
     }
 
-    // 立即更新本地患者状态，确保UI即时响应
-    const patientIndex = patients.value.findIndex(
-      (p) => p.registerId === entry.display.registerId,
-    )
-    if (patientIndex !== -1) {
-      // 创建新对象以确保触发响应式更新
-      patients.value[patientIndex] = {
-        ...patients.value[patientIndex]!,
-        patientStatus: 2,
-      }
-    }
+    // 立即更新本地患者状态和缓存，确保UI即时响应
+    updatePatientStatusLocal(entry.display.registerId, 2)
 
     ElMessage.success(`${entry.display.name} 已完成就诊`)
-    // 重新加载患者列表以确保数据同步
+    // 重新加载患者列表，缓存的状态会自动合并
     await loadPatients()
+
+    // 可选：清除已完成患者的缓存（如果后端会过滤掉已就诊患者）
+    // clearPatientStatus(entry.display.registerId)
   } catch (err) {
     console.error('完成就诊失败:', err)
     if (err instanceof Error) {
