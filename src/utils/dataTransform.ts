@@ -126,7 +126,7 @@ export interface WeekDayColumn {
   prop: string
   date?: string
   weekLabel?: string // 周标签，如"本周"、"下周"
-  weekDateRange?: string // 周日期范围，如"11.18"
+  dayDate?: string // 每天的日期，如"11.18"
 }
 
 export interface ScheduleTransformResult {
@@ -160,13 +160,6 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
   for (let week = 0; week < 2; week++) {
     const daysInWeek = 7
 
-    // 计算本周周一的日期，用于显示"月.日"
-    const weekMondayDate = new Date(startMonday)
-    weekMondayDate.setDate(startMonday.getDate() + week * 7)
-    const weekMonth = weekMondayDate.getMonth() + 1
-    const weekDay = weekMondayDate.getDate()
-    const weekDateRange = `${weekMonth}.${weekDay}`
-
     for (let day = 0; day < daysInWeek; day++) {
       const currentDate = new Date(startMonday)
       currentDate.setDate(startMonday.getDate() + week * 7 + day)
@@ -174,6 +167,11 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
       const weekLabel = week === 0 ? '本周' : week === 1 ? '下周' : '第三周'
       const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
       const dayLabel = dayNames[day]
+
+      // 计算每一天的日期，用于显示"月.日"
+      const dayMonth = currentDate.getMonth() + 1
+      const dayDay = currentDate.getDate()
+      const dayDate = `${dayMonth}.${dayDay}`
 
       const dayProps = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
       const prop = `week${week + 1}_${dayProps[day]}`
@@ -184,7 +182,7 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
         prop,
         date: dateStr,
         weekLabel,
-        weekDateRange,
+        dayDate,
       })
 
       scheduleData[0]![prop] = ''
