@@ -108,6 +108,7 @@
                       v-if="(scope.row.patientStatus ?? 0) === 0"
                       size="small"
                       type="primary"
+                      :disabled="!canDiagnosePatient(scope.row.timePeriod, scope.row.date)"
                       @click="handleDiagnosis(scope.$index)"
                     >
                       接诊
@@ -451,6 +452,43 @@ const notificationList = computed<FrontendNotification[]>(() =>
 
 const showCurrentShift = ref(false)
 const searchName = ref('')
+
+/**
+ * 获取当前时间所在的时段
+ * @returns 时段编号 (1=上午, 2=下午, 3=晚上) 或 null (不在任何时段内)
+ */
+function getCurrentTimePeriod(): number | null {
+  const now = new Date()
+  const hour = now.getHours()
+
+  if (hour >= 8 && hour < 14) return 1 // 上午 8:00-14:00
+  if (hour >= 14 && hour < 19) return 2 // 下午 14:00-19:00
+  if (hour >= 19 && hour < 22) return 3 // 晚上 19:00-22:00
+
+  return null // 不在任何就诊时段内
+}
+
+/**
+ * 检查是否可以接诊指定时段的患者
+ * @param patientTimePeriod 患者预约的时段
+ * @param patientDate 患者预约的日期
+ * @returns true 表示可以接诊，false 表示不可接诊
+ */
+function canDiagnosePatient(patientTimePeriod: number, patientDate: string): boolean {
+  const currentPeriod = getCurrentTimePeriod()
+  if (currentPeriod === null) {
+    return false // 不在任何就诊时段内
+  }
+
+  // 检查日期是否为今天
+  const today = new Date().toISOString().split('T')[0]
+  if (patientDate !== today) {
+    return false // 不是今天的患者
+  }
+
+  // 检查时段是否匹配
+  return currentPeriod === patientTimePeriod
+}
 
 function getShiftStartDateTime(date: string, timePeriod: number): Date {
   const [yearStr, monthStr, dayStr] = date.split('-')
@@ -927,6 +965,12 @@ const handleDiagnosis = async (index: number) => {
   const entry = filteredPatientEntries.value[index]
   if (!entry) {
     ElMessage.warning('未找到患者信息')
+    return
+  }
+
+  // 检查是否在就诊时间内
+  if (!canDiagnosePatient(entry.display.timePeriod, entry.display.date)) {
+    ElMessage.warning('当前不在就诊时间')
     return
   }
 
