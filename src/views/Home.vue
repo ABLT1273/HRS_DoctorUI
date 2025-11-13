@@ -306,13 +306,10 @@
         <!-- 基本信息区域 -->
         <div class="basic-info-section">
           <h4>基本信息</h4>
-          <el-descriptions :column="2" border>
+          <el-descriptions :column="3" border>
             <el-descriptions-item label="姓名">{{ currentPatientInfo.name }}</el-descriptions-item>
             <el-descriptions-item label="性别">{{ currentPatientInfo.gender }}</el-descriptions-item>
             <el-descriptions-item label="年龄">{{ currentPatientInfo.age }}</el-descriptions-item>
-            <el-descriptions-item label="联系电话">{{ currentPatientInfo.phone }}</el-descriptions-item>
-            <el-descriptions-item label="身份证号">{{ currentPatientInfo.idCard }}</el-descriptions-item>
-            <el-descriptions-item label="地址" :span="2">{{ currentPatientInfo.address }}</el-descriptions-item>
           </el-descriptions>
         </div>
 
@@ -900,35 +897,7 @@ const currentPatientInfo = ref({
   name: '',
   gender: '',
   age: 0,
-  phone: '',
-  idCard: '',
-  address: '',
 })
-
-// 模拟生成患者基本信息
-const generateMockPatientInfo = (entry: PatientEntry) => {
-  const phoneNumbers = ['138****1234', '139****5678', '186****9012', '188****3456']
-  const idCards = ['110101199001011234', '310101198512125678', '440101199203039012']
-  const addresses = [
-    '北京市朝阳区建国路88号',
-    '上海市浦东新区世纪大道200号',
-    '广州市天河区天河路123号',
-    '深圳市南山区科技园南路456号',
-  ]
-
-  const randomPhone = phoneNumbers[Math.floor(Math.random() * phoneNumbers.length)] || '138****0000'
-  const randomIdCard = idCards[Math.floor(Math.random() * idCards.length)] || '110101199001010000'
-  const randomAddress = addresses[Math.floor(Math.random() * addresses.length)] || '未知地址'
-
-  return {
-    name: entry.display.name,
-    gender: entry.display.gender,
-    age: entry.display.age,
-    phone: randomPhone,
-    idCard: randomIdCard,
-    address: randomAddress,
-  }
-}
 
 const handleViewPatientInfo = async (index: number) => {
   const entry = filteredPatientEntries.value[index]
@@ -941,8 +910,12 @@ const handleViewPatientInfo = async (index: number) => {
   patientInfoLoading.value = true
   registerRecords.value = []
 
-  // 设置基本信息（使用模拟数据）
-  currentPatientInfo.value = generateMockPatientInfo(entry)
+  // 设置基本信息
+  currentPatientInfo.value = {
+    name: entry.display.name,
+    gender: entry.display.gender,
+    age: entry.display.age,
+  }
 
   try {
     const response = await getRegisterRecords(entry.display.registerId, doctorId.value ?? undefined)
@@ -965,9 +938,6 @@ const closePatientInfoDialog = () => {
     name: '',
     gender: '',
     age: 0,
-    phone: '',
-    idCard: '',
-    address: '',
   }
 }
 
