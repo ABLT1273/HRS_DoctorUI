@@ -272,7 +272,12 @@
               </el-table>
             </div>
             <div v-if="scheduleAdjustForm.selectedShiftLabel" class="selected-shift-info">
-              已选择：{{ scheduleAdjustForm.selectedShiftLabel }}
+              <template v-if="scheduleAdjustForm.selectedShiftData?.doctorName">
+                已选择与 <strong>{{ scheduleAdjustForm.selectedShiftData.doctorName }}</strong> 调班：{{ scheduleAdjustForm.selectedShiftLabel }}
+              </template>
+              <template v-else>
+                已选择调到空闲时间：{{ scheduleAdjustForm.selectedShiftLabel }}
+              </template>
             </div>
           </el-form-item>
           <el-form-item label="申请原因">
@@ -575,7 +580,7 @@ const scheduleAdjustForm = reactive({
   leaveDays: 1,
   leaveReason: '',
   selectedShiftLabel: '',
-  selectedShiftData: null as { date: string; timePeriod: number } | null,
+  selectedShiftData: null as { date: string; timePeriod: number; doctorId?: string; doctorName?: string } | null,
   shiftReason: '',
 })
 
@@ -711,10 +716,24 @@ const handleScheduleCellClick = (
   const timePeriod = getTimePeriodFromSimpleSlot(row.timeSlot)
   if (!timePeriod) return
 
+  // 获取点击格子中的医生信息
+  const mapKey = `${columnInfo.date}-${timePeriod}`
+  const shift = allScheduleMap.value.get(mapKey)
+  const cellValue = row[columnProp]?.trim() ?? ''
+
   scheduleAdjustForm.selectedShiftLabel = `${columnInfo.label} ${row.timeSlot}`
   scheduleAdjustForm.selectedShiftData = {
     date: columnInfo.date,
     timePeriod,
+    doctorId: shift?.docId,
+    doctorName: cellValue || undefined,
+  }
+
+  // 显示选择信息
+  if (cellValue) {
+    ElMessage.success(`已选择与 ${cellValue} 调班：${columnInfo.label} ${row.timeSlot}`)
+  } else {
+    ElMessage.success(`已选择调到空闲时间：${columnInfo.label} ${row.timeSlot}`)
   }
 }
 
@@ -820,10 +839,20 @@ const submitScheduleAdjust = async () => {
   }
 
   const originalShift = selectedScheduleShift.value.shift
+
+  // 确定 changeType
+  let changeType = 0
+  if (scheduleAdjustForm.type === 'leave') {
+    changeType = 1 // 请假
+  } else if (scheduleAdjustForm.type === 'shift' && scheduleAdjustForm.selectedShiftData) {
+    // 调班模式：如果点击的格子里有医生，则为医生间调班(changeType=2)，否则为调到空闲时间(changeType=0)
+    changeType = scheduleAdjustForm.selectedShiftData.doctorId ? 2 : 0
+  }
+
   const payload: ScheduleChangeRequest = {
     docId: doctorId.value,
     originalTime: `${originalShift.date}_${originalShift.timePeriod}`,
-    changeType: scheduleAdjustForm.type === 'leave' ? 1 : 0,
+    changeType,
     leaveTimeLength: scheduleAdjustForm.type === 'leave' ? scheduleAdjustForm.leaveDays : 0,
     reason:
       scheduleAdjustForm.type === 'leave'
@@ -834,6 +863,10 @@ const submitScheduleAdjust = async () => {
   if (scheduleAdjustForm.type === 'shift' && scheduleAdjustForm.selectedShiftData) {
     payload.targetDate = scheduleAdjustForm.selectedShiftData.date
     payload.timePeriod = scheduleAdjustForm.selectedShiftData.timePeriod
+    // 如果是医生间调班(changeType=2)，需要包含目标医生ID
+    if (scheduleAdjustForm.selectedShiftData.doctorId) {
+      payload.targetDoctorId = scheduleAdjustForm.selectedShiftData.doctorId
+    }
   }
 
   try {
