@@ -1032,7 +1032,11 @@ const handleDiagnosis = async (index: number) => {
       (p) => p.registerId === entry.display.registerId,
     )
     if (patientIndex !== -1) {
-      patients.value[patientIndex]!.patientStatus = 1
+      // 创建新对象以确保触发响应式更新
+      patients.value[patientIndex] = {
+        ...patients.value[patientIndex]!,
+        patientStatus: 1,
+      }
     }
 
     ElMessage.success(`已开始接诊 ${entry.display.name}`)
@@ -1084,7 +1088,11 @@ const handleComplete = async (index: number) => {
       (p) => p.registerId === entry.display.registerId,
     )
     if (patientIndex !== -1) {
-      patients.value[patientIndex]!.patientStatus = 2
+      // 创建新对象以确保触发响应式更新
+      patients.value[patientIndex] = {
+        ...patients.value[patientIndex]!,
+        patientStatus: 2,
+      }
     }
 
     ElMessage.success(`${entry.display.name} 已完成就诊`)
