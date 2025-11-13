@@ -105,7 +105,7 @@
                 <el-table-column label="操作" width="100">
                   <template #default="scope">
                     <el-button
-                      v-if="scope.row.patientStatus === 0"
+                      v-if="(scope.row.patientStatus ?? 0) === 0"
                       size="small"
                       type="primary"
                       @click="handleDiagnosis(scope.$index)"
@@ -113,7 +113,7 @@
                       接诊
                     </el-button>
                     <el-button
-                      v-else-if="scope.row.patientStatus === 1"
+                      v-else-if="(scope.row.patientStatus ?? 0) === 1"
                       size="small"
                       type="success"
                       @click="handleComplete(scope.$index)"
@@ -121,7 +121,7 @@
                       完成
                     </el-button>
                     <el-button
-                      v-else-if="scope.row.patientStatus === 2"
+                      v-else-if="(scope.row.patientStatus ?? 0) === 2"
                       size="small"
                       type="info"
                       disabled
@@ -411,10 +411,31 @@ const currentDoctorName = computed(
 )
 
 const patientEntries = computed<PatientEntry[]>(() =>
-  patients.value.map((patient) => ({
-    display: transformPatient(patient),
-    raw: patient,
-  })),
+  patients.value.map((patient) => {
+    try {
+      return {
+        display: transformPatient(patient),
+        raw: patient,
+      }
+    } catch (error) {
+      console.error('患者数据转换错误:', error, patient)
+      // 返回一个安全的默认值
+      return {
+        display: {
+          name: patient.patientName || '未知',
+          registerId: patient.registerId || '',
+          gender: patient.gender || '未知',
+          age: patient.age || 0,
+          department: '内科',
+          date: patient.scheduleDate || '',
+          shift: '未知',
+          timePeriod: patient.timePeriod || 0,
+          patientStatus: 0,
+        },
+        raw: patient,
+      }
+    }
+  }),
 )
 
 const requestEntries = computed<RequestEntry[]>(() =>
@@ -523,7 +544,11 @@ const filteredPatientEntries = computed(() => {
   }
 
   // 按患者状态排序：已挂号(0) > 就诊中(1) > 已就诊(2)
-  result = result.sort((a, b) => a.display.patientStatus - b.display.patientStatus)
+  result = result.sort((a, b) => {
+    const statusA = a.display.patientStatus ?? 0
+    const statusB = b.display.patientStatus ?? 0
+    return statusA - statusB
+  })
 
   return result
 })
@@ -906,18 +931,26 @@ const handleDiagnosis = async (index: number) => {
   }
 
   try {
+    console.log('发送接诊请求:', {
+      doctorId: doctorId.value,
+      registerId: entry.display.registerId,
+      doctorStatus: 1,
+      patientStatus: 1,
+    })
     const response = await updatePatientStatus({
       doctorId: doctorId.value,
       registerId: entry.display.registerId,
       doctorStatus: 1,
       patientStatus: 1,
     })
+    console.log('接诊响应:', response)
     if (response.code !== 200) {
       throw new Error(response.msg || '更新患者状态失败')
     }
     ElMessage.success(`已开始接诊 ${entry.display.name}`)
     await loadPatients()
   } catch (err) {
+    console.error('接诊失败:', err)
     if (err instanceof Error) {
       ElMessage.error(err.message)
     } else {
@@ -940,18 +973,26 @@ const handleComplete = async (index: number) => {
   }
 
   try {
+    console.log('发送完成请求:', {
+      doctorId: doctorId.value,
+      registerId: entry.display.registerId,
+      doctorStatus: 0,
+      patientStatus: 2,
+    })
     const response = await updatePatientStatus({
       doctorId: doctorId.value,
       registerId: entry.display.registerId,
       doctorStatus: 0,
       patientStatus: 2,
     })
+    console.log('完成响应:', response)
     if (response.code !== 200) {
       throw new Error(response.msg || '更新患者状态失败')
     }
     ElMessage.success(`${entry.display.name} 已完成就诊`)
     await loadPatients()
   } catch (err) {
+    console.error('完成就诊失败:', err)
     if (err instanceof Error) {
       ElMessage.error(err.message)
     } else {
