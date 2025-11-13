@@ -125,6 +125,8 @@ export interface WeekDayColumn {
   label: string
   prop: string
   date?: string
+  weekLabel?: string // 周标签，如"本周"、"下周"
+  weekDateRange?: string // 周日期范围，如"11.18"
 }
 
 export interface ScheduleTransformResult {
@@ -157,6 +159,14 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
 
   for (let week = 0; week < 3; week++) {
     const daysInWeek = week < 2 ? 5 : 7
+
+    // 计算本周周一的日期，用于显示"月.日"
+    const weekMondayDate = new Date(startMonday)
+    weekMondayDate.setDate(startMonday.getDate() + week * 7)
+    const weekMonth = weekMondayDate.getMonth() + 1
+    const weekDay = weekMondayDate.getDate()
+    const weekDateRange = `${weekMonth}.${weekDay}`
+
     for (let day = 0; day < daysInWeek; day++) {
       const currentDate = new Date(startMonday)
       currentDate.setDate(startMonday.getDate() + week * 7 + day)
@@ -173,6 +183,8 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
         label: `${weekLabel}${dayLabel}`,
         prop,
         date: dateStr,
+        weekLabel,
+        weekDateRange,
       })
 
       scheduleData[0]![prop] = ''
