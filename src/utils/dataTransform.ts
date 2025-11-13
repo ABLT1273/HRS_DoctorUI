@@ -158,7 +158,7 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
   console.log('排班表起始周一:', startMonday.toISOString().split('T')[0])
 
   for (let week = 0; week < 2; week++) {
-    const daysInWeek = 5
+    const daysInWeek = 7
 
     // 计算本周周一的日期，用于显示"月.日"
     const weekMondayDate = new Date(startMonday)
