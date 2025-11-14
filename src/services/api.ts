@@ -216,10 +216,19 @@ export async function getRegisterRecords(
   registerId: string,
   docId?: string,
 ): Promise<RegisterRecordsResponse> {
-  const response = await apiClient.get<RegisterRecordsResponse>(`/register/${registerId}`, {
+  const response = await apiClient.get<ApiResponse<RegisterRecordsResponse>>(`/register/${registerId}`, {
     params: { docId },
   })
-  return response.data
+  const data = response.data as any
+  // 处理后端返回的嵌套结构 { code, msg, data: { records: [...] } }
+  if (data.data && Array.isArray(data.data.records)) {
+    return data.data
+  }
+  // 如果已经是正确格式 { records: [...] }
+  if (Array.isArray(data.records)) {
+    return data
+  }
+  throw new Error('挂号记录数据格式错误')
 }
 
 /**
