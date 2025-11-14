@@ -121,6 +121,14 @@ export function useDoctorData() {
   function subscribeAddNumberRequests() {
     if (!doctorId.value) return
 
+    // 开发环境下先加载Mock数据,便于前端开发和测试
+    if (import.meta.env.DEV) {
+      import('@/mock/addNumberApplications').then((module) => {
+        addNumberRequests.value = module.getMockAddNumberApplications()
+        console.log('已加载加号申请Mock数据:', addNumberRequests.value)
+      })
+    }
+
     addNumberEventSource = subscribeAddNumberNotifications(
       doctorId.value,
       (data) => {
