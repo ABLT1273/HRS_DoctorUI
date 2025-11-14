@@ -1,7 +1,6 @@
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
-import { fetchEventSource } from '@microsoft/fetch-event-source'
 import type {
   ApiResponse,
   LoginRequest,
@@ -286,7 +285,6 @@ export async function updatePatientStatus(request: PatientStatusRequest): Promis
 
 /**
  * 创建 SSE 连接的通用函数
- * 使用 fetchEventSource 以支持自定义 headers（如 Authorization）
  */
 function createSSEConnection<T>(
   url: string,
@@ -295,54 +293,33 @@ function createSSEConnection<T>(
 ): EventSource {
   const token = localStorage.getItem('token')
   const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/doctor'
-  const fullUrl = `${baseURL}${url}`
 
-  const ctrl = new AbortController()
+  // 构建完整 URL 并添加 token
+  const fullUrl = `${baseURL}${url}${url.includes('?') ? '&' : '?'}token=${token}`
 
-  // 使用 fetchEventSource 以支持 Authorization header
-  fetchEventSource(fullUrl, {
-    signal: ctrl.signal,
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    onmessage(event) {
-      try {
-        const data = JSON.parse(event.data)
-        onMessage(data)
-      } catch (error) {
-        console.error('SSE 消息解析错误:', error)
-        if (onError) {
-          onError(error as Error)
-        }
-      }
-    },
-    onerror(error) {
-      console.error('SSE 连接错误:', error)
+  const eventSource = new EventSource(fullUrl)
+
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      onMessage(data)
+    } catch (error) {
+      console.error('SSE 消息解析错误:', error)
       if (onError) {
-        onError(error instanceof Error ? error : new Error('SSE 连接发生错误'))
+        onError(error as Error)
       }
-      // 抛出错误以停止重连
-      throw error
-    },
-    openWhenHidden: true,
-  })
+    }
+  }
 
-  // 返回兼容 EventSource 接口的对象
-  return {
-    close: () => ctrl.abort(),
-    readyState: EventSource.CONNECTING,
-    url: fullUrl,
-    withCredentials: false,
-    CONNECTING: EventSource.CONNECTING,
-    OPEN: EventSource.OPEN,
-    CLOSED: EventSource.CLOSED,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-    onopen: null,
-    onmessage: null,
-    onerror: null,
-  } as EventSource
+  eventSource.onerror = (event) => {
+    console.error('SSE 连接错误:', event)
+    if (onError) {
+      const emittedError = event instanceof Error ? event : new Error('SSE 连接发生错误')
+      onError(emittedError)
+    }
+  }
+
+  return eventSource
 }
 
 /**
