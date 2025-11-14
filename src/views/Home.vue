@@ -39,11 +39,7 @@
             >
               <el-table-column prop="timeSlot" label="时间段" width="160" fixed />
 
-              <el-table-column
-                v-for="(day, index) in weekDays"
-                :key="index"
-                :prop="day.prop"
-              >
+              <el-table-column v-for="(day, index) in weekDays" :key="index" :prop="day.prop">
                 <template #header>
                   <div class="custom-header">
                     <div class="week-label">{{ day.label }}</div>
@@ -284,7 +280,10 @@
             </div>
             <div v-if="scheduleAdjustForm.selectedShiftLabel" class="selected-shift-info">
               <template v-if="scheduleAdjustForm.selectedShiftData?.doctorName">
-                已选择与 <strong>{{ scheduleAdjustForm.selectedShiftData.doctorName }}</strong> 调班：{{ scheduleAdjustForm.selectedShiftLabel }}
+                已选择与
+                <strong>{{ scheduleAdjustForm.selectedShiftData.doctorName }}</strong> 调班：{{
+                  scheduleAdjustForm.selectedShiftLabel
+                }}
               </template>
               <template v-else>
                 已选择调到空闲时间：{{ scheduleAdjustForm.selectedShiftLabel }}
@@ -320,7 +319,9 @@
           <h4>基本信息</h4>
           <el-descriptions :column="3" border>
             <el-descriptions-item label="姓名">{{ currentPatientInfo.name }}</el-descriptions-item>
-            <el-descriptions-item label="性别">{{ currentPatientInfo.gender }}</el-descriptions-item>
+            <el-descriptions-item label="性别">{{
+              currentPatientInfo.gender
+            }}</el-descriptions-item>
             <el-descriptions-item label="年龄">{{ currentPatientInfo.age }}</el-descriptions-item>
           </el-descriptions>
         </div>
@@ -330,7 +331,7 @@
           <h4>就诊记录</h4>
           <template v-if="registerRecords.length">
             <el-table :data="registerRecords" style="width: 100%" border>
-              <el-table-column prop="registerId" label="挂号号" width="160" />
+              <el-table-column prop="registerId" label="挂号" width="160" />
               <el-table-column prop="registerTime" label="挂号时间">
                 <template #default="{ row }">
                   {{ formatRecordTime(row.registerTime) }}
@@ -669,7 +670,12 @@ const scheduleAdjustForm = reactive({
   leaveDays: 1,
   leaveReason: '',
   selectedShiftLabel: '',
-  selectedShiftData: null as { date: string; timePeriod: number; doctorId?: string; doctorName?: string } | null,
+  selectedShiftData: null as {
+    date: string
+    timePeriod: number
+    doctorId?: string
+    doctorName?: string
+  } | null,
   shiftReason: '',
 })
 
