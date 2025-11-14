@@ -55,6 +55,16 @@ apiClient.interceptors.response.use(
 
     // 处理错误
     if (error.response) {
+      // 对于 500 错误，如果响应体中有业务 code（如 409），则返回响应而不是抛出异常
+      // 这样可以在业务层处理特殊的业务错误码
+      if (error.response.status === 500 && error.response.data) {
+        const data = error.response.data as any
+        if (data && typeof data.code === 'number') {
+          // 有业务 code，返回响应供业务层处理
+          return error.response
+        }
+      }
+
       switch (error.response.status) {
         case 401:
           {
