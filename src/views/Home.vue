@@ -998,11 +998,9 @@ const decideAddNumber = async (request: AddNumberApplication, approved: boolean)
     if (response.code !== 200) {
       throw new Error(response.msg || '操作失败')
     }
-    ElMessage.success(
-      approved
-        ? `已同意 ${request.patientName} 的加号申请`
-        : `已拒绝 ${request.patientName} 的加号申请`,
-    )
+    // 使用后端返回的友好提示消息
+    const message = response.data?.message || (approved ? '加号申请已批准' : '加号申请已拒绝')
+    ElMessage.success(message)
   } catch (err) {
     if (err instanceof Error) {
       ElMessage.error(err.message)

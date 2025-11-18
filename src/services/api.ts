@@ -10,6 +10,7 @@ import type {
   RegisterRecordsResponse,
   AddNumberApplicationsResponse,
   AddNumberResultRequest,
+  AddNumberResultResponse,
   NotificationsResponse,
   DoctorProfileResponse,
   ScheduleChangeRequest,
@@ -234,9 +235,15 @@ export async function getRegisterRecords(
 /**
  * 提交加号结果
  * POST /doctor/add_number_result
+ * 返回格式: { code, msg, data: { decision: "approved"/"rejected", message: "..." } }
  */
-export async function submitAddNumberResult(request: AddNumberResultRequest): Promise<ApiResponse> {
-  const response = await apiClient.post<ApiResponse>('/add_number_result', request)
+export async function submitAddNumberResult(
+  request: AddNumberResultRequest,
+): Promise<ApiResponse<AddNumberResultResponse>> {
+  const response = await apiClient.post<ApiResponse<AddNumberResultResponse>>(
+    '/add_number_result',
+    request,
+  )
   return response.data
 }
 
@@ -301,8 +308,17 @@ function createSSEConnection<T>(
 
   eventSource.onmessage = (event) => {
     try {
-      const data = JSON.parse(event.data)
-      onMessage(data)
+      const result = JSON.parse(event.data) as ApiResponse<T>
+      // 后端返回的是 Result 包装格式: { code, msg, data: {...} }
+      // 需要提取 data 部分传给回调函数
+      if (result.code === 200 && result.data) {
+        onMessage(result.data)
+      } else {
+        console.error('SSE 消息错误:', result.msg)
+        if (onError) {
+          onError(new Error(result.msg || 'SSE 消息处理失败'))
+        }
+      }
     } catch (error) {
       console.error('SSE 消息解析错误:', error)
       if (onError) {

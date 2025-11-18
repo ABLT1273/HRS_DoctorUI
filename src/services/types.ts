@@ -79,6 +79,12 @@ export interface AddNumberResultRequest {
   note?: string
 }
 
+// 加号审核结果响应
+export interface AddNumberResultResponse {
+  decision: string // "approved" 或 "rejected"
+  message: string // 中文友好提示
+}
+
 // 通知
 export interface Notification {
   id: string
