@@ -110,7 +110,6 @@
                 <el-table-column prop="name" label="姓名" width="120" />
                 <el-table-column prop="gender" label="性别" width="80" />
                 <el-table-column prop="age" label="年龄" width="80" />
-                <el-table-column prop="department" label="科室" width="120" />
                 <el-table-column label="预约时段">
                   <template #default="scope"> {{ scope.row.date }} {{ scope.row.shift }} </template>
                 </el-table-column>
