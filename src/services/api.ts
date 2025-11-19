@@ -295,6 +295,7 @@ export async function updatePatientStatus(request: PatientStatusRequest): Promis
  */
 function createSSEConnection<T>(
   url: string,
+  eventName: string,
   onMessage: SSEMessageHandler<T>,
   onError?: SSEErrorHandler,
 ): EventSource {
@@ -306,7 +307,8 @@ function createSSEConnection<T>(
 
   const eventSource = new EventSource(fullUrl)
 
-  eventSource.onmessage = (event) => {
+  // 监听自定义事件名（后端使用 .name(eventName) 发送）
+  eventSource.addEventListener(eventName, (event) => {
     try {
       const result = JSON.parse(event.data) as ApiResponse<T>
       // 后端返回的是 Result 包装格式: { code, msg, data: {...} }
@@ -325,10 +327,19 @@ function createSSEConnection<T>(
         onError(error as Error)
       }
     }
+  })
+
+  // 备用：监听默认 message 事件（用于调试）
+  eventSource.onmessage = (event) => {
+    console.log('[SSE 默认消息]', event.data)
+  }
+
+  eventSource.onopen = () => {
+    console.log(`[SSE 已连接] ${eventName}`)
   }
 
   eventSource.onerror = (event) => {
-    console.error('SSE 连接错误:', event)
+    console.error(`[SSE 连接错误] ${eventName}:`, event)
     if (onError) {
       const emittedError = event instanceof Error ? event : new Error('SSE 连接发生错误')
       onError(emittedError)
@@ -341,6 +352,7 @@ function createSSEConnection<T>(
 /**
  * 订阅加号申请的SSE通知
  * GET /doctor/add_number_notify_doctor
+ * 后端事件名: "add-number-updated"
  */
 export function subscribeAddNumberNotifications(
   docId: string | undefined,
@@ -348,12 +360,18 @@ export function subscribeAddNumberNotifications(
   onError?: SSEErrorHandler,
 ): EventSource {
   const url = docId ? `/add_number_notify_doctor?docId=${docId}` : '/add_number_notify_doctor'
-  return createSSEConnection<AddNumberApplicationsResponse>(url, onMessage, onError)
+  return createSSEConnection<AddNumberApplicationsResponse>(
+    url,
+    'add-number-updated',
+    onMessage,
+    onError,
+  )
 }
 
 /**
  * 订阅通知消息的SSE推送
  * GET /doctor/notifications
+ * 后端事件名: "notification-updated" (假设与加号申请类似的命名)
  */
 export function subscribeNotifications(
   docId: string,
@@ -362,6 +380,7 @@ export function subscribeNotifications(
 ): EventSource {
   return createSSEConnection<NotificationsResponse>(
     `/notifications?docId=${docId}`,
+    'notification-updated',
     onMessage,
     onError,
   )
