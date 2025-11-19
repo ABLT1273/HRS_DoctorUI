@@ -132,10 +132,13 @@ export function useDoctorData() {
     addNumberEventSource = subscribeAddNumberNotifications(
       doctorId.value,
       (data) => {
+        console.log('[useDoctorData] SSE 回调收到 data:', data)
+        console.log('[useDoctorData] addApplications:', data.addApplications)
         addNumberRequests.value = data.addApplications
+        console.log('[useDoctorData] 已更新 addNumberRequests.value:', addNumberRequests.value)
       },
       (error) => {
-        console.error('加号申请SSE错误:', error)
+        console.error('[useDoctorData] 加号申请SSE错误:', error)
       },
     )
   }

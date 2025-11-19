@@ -309,20 +309,25 @@ function createSSEConnection<T>(
 
   // 监听自定义事件名（后端使用 .name(eventName) 发送）
   eventSource.addEventListener(eventName, (event) => {
+    console.log(`[SSE ${eventName}] 收到原始数据:`, event.data)
     try {
       const result = JSON.parse(event.data) as ApiResponse<T>
+      console.log(`[SSE ${eventName}] 解析后的 result:`, result)
+
       // 后端返回的是 Result 包装格式: { code, msg, data: {...} }
       // 需要提取 data 部分传给回调函数
       if (result.code === 200 && result.data) {
+        console.log(`[SSE ${eventName}] 提取的 data:`, result.data)
         onMessage(result.data)
+        console.log(`[SSE ${eventName}] 已调用 onMessage 回调`)
       } else {
-        console.error('SSE 消息错误:', result.msg)
+        console.error(`[SSE ${eventName}] 消息错误:`, result.msg, result)
         if (onError) {
           onError(new Error(result.msg || 'SSE 消息处理失败'))
         }
       }
     } catch (error) {
-      console.error('SSE 消息解析错误:', error)
+      console.error(`[SSE ${eventName}] 消息解析错误:`, error, '原始数据:', event.data)
       if (onError) {
         onError(error as Error)
       }
