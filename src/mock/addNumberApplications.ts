@@ -26,7 +26,7 @@ export const regularAddNumberApplication: AddNumberApplication = {
   addId: 'ADD002',
   patientName: '李四',
   applyTime: '2025-11-14T10:15:00',
-  targetDate: '2025-11-15',
+  targetDate: '2025-11-22',
   targetTimePeriod: 1, // 上午时段
   note: '因临时出差无法按原预约时间就诊,希望能够加号到明天上午时段。患者已提前完成相关检查。',
 }
@@ -43,7 +43,8 @@ export const mockAddNumberApplicationsResponse: AddNumberApplicationsResponse = 
  * 可用于开发环境或测试环境
  */
 export function getMockAddNumberApplications(): AddNumberApplication[] {
-  return [urgentAddNumberApplication, regularAddNumberApplication]
+  // return [urgentAddNumberApplication, regularAddNumberApplication]
+  return []
 }
 
 /**
