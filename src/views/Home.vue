@@ -507,7 +507,7 @@ const hasPatientInDiagnosis = computed(() => {
 
 /**
  * 获取当前时间所在的时段
- * @returns 时段编号 (1=上午, 2=下午, 3=晚上) 或 null (不在任何时段内)
+ * @returns 时段编号 (1=上午, 2=下午) 或 null (不在任何时段内)
  */
 function getCurrentTimePeriod(): number | null {
   const now = new Date()
@@ -515,7 +515,6 @@ function getCurrentTimePeriod(): number | null {
 
   if (hour >= 8 && hour < 14) return 1 // 上午 8:00-14:00
   if (hour >= 14 && hour < 19) return 2 // 下午 14:00-19:00
-  if (hour >= 19 && hour < 22) return 3 // 晚上 19:00-22:00
 
   return null // 不在任何就诊时段内
 }
@@ -558,7 +557,7 @@ function getShiftStartDateTime(date: string, timePeriod: number): Date {
     Number.isNaN(parsedMonth) ? 0 : parsedMonth - 1,
     Number.isNaN(parsedDay) ? 1 : parsedDay,
   )
-  const timeMap: Record<number, number> = { 1: 8, 2: 14, 3: 19 }
+  const timeMap: Record<number, number> = { 1: 8, 2: 14 }
   const hour = timeMap[timePeriod] ?? 0
   base.setHours(hour, 0, 0, 0)
   return base
@@ -574,7 +573,6 @@ const shiftInfo = computed(() => {
 
   if (hour >= 8 && hour < 14) currentPeriod = 1
   else if (hour >= 14 && hour < 19) currentPeriod = 2
-  else if (hour >= 19 && hour < 22) currentPeriod = 3
 
   const sorted = [...patientEntries.value].sort(
     (a, b) =>
@@ -685,19 +683,53 @@ const miniWeekDays = computed(() => weekDays.value.slice(0, Math.min(7, weekDays
 const allScheduleTransform = computed(() => transformScheduleToWeekTable(allShifts.value || []))
 const allScheduleMap = computed(() => allScheduleTransform.value.scheduleMap)
 
-const miniScheduleData = computed<MiniScheduleRow[]>(() =>
-  [1, 2, 3].map((timePeriod) => {
-    const row: MiniScheduleRow = {
-      timeSlot: TIME_PERIOD_MAP[timePeriod] ?? '',
+const miniScheduleData = computed<MiniScheduleRow[]>(() => {
+  // 按日期和时段分组所有班次
+  const shiftsByDateAndPeriod = new Map<string, Shift[]>()
+  allShifts.value.forEach((shift) => {
+    const key = `${shift.date}-${shift.timePeriod}`
+    if (!shiftsByDateAndPeriod.has(key)) {
+      shiftsByDateAndPeriod.set(key, [])
     }
-    miniWeekDays.value.forEach(({ prop, date }) => {
-      const key = `${date}-${timePeriod}`
-      const shift = allScheduleMap.value.get(key)
-      row[prop] = shift?.docName ?? ''
-    })
-    return row
-  }),
-)
+    shiftsByDateAndPeriod.get(key)!.push(shift)
+  })
+
+  // 计算每个时段的最大医生数
+  const maxDoctorsPerPeriod: Record<number, number> = { 1: 1, 2: 1 }
+  miniWeekDays.value.forEach((dayCol) => {
+    for (const timePeriod of [1, 2]) {
+      const key = `${dayCol.date}-${timePeriod}`
+      const shiftsInCell = shiftsByDateAndPeriod.get(key) || []
+      maxDoctorsPerPeriod[timePeriod] = Math.max(
+        maxDoctorsPerPeriod[timePeriod]!,
+        shiftsInCell.length,
+      )
+    }
+  })
+
+  // 创建行数据
+  const rows: MiniScheduleRow[] = []
+  for (const timePeriod of [1, 2]) {
+    const periodLabel = TIME_PERIOD_MAP[timePeriod] ?? ''
+    const maxDoctors = maxDoctorsPerPeriod[timePeriod]!
+
+    for (let doctorIndex = 0; doctorIndex < maxDoctors; doctorIndex++) {
+      const row: MiniScheduleRow = {
+        timeSlot: maxDoctors > 1 ? `${periodLabel}-${doctorIndex + 1}` : periodLabel,
+      }
+
+      miniWeekDays.value.forEach(({ prop, date }) => {
+        const key = `${date}-${timePeriod}`
+        const shiftsInCell = shiftsByDateAndPeriod.get(key) || []
+        row[prop] = shiftsInCell[doctorIndex]?.docName ?? ''
+      })
+
+      rows.push(row)
+    }
+  }
+
+  return rows
+})
 
 function getTimePeriodFromDetailSlot(slot: string): number | null {
   const found = Object.entries(TIME_PERIOD_DETAIL_MAP).find(([, value]) => value === slot)
@@ -706,6 +738,58 @@ function getTimePeriodFromDetailSlot(slot: string): number | null {
 
 function getTimePeriodFromSimpleSlot(slot: string): number | null {
   return TIME_PERIOD_REVERSE_MAP[slot] ?? null
+}
+
+/**
+ * 从timeSlot字符串中解析时段和医生索引
+ * @param slot 时段字符串，如 "上午 8:00-12:00" 或 "上午 8:00-12:00-1"
+ * @returns {timePeriod: number, doctorIndex: number} 或 null
+ */
+function parseTimeSlotWithIndex(slot: string): { timePeriod: number; doctorIndex: number } | null {
+  // 尝试匹配带索引的格式，如 "上午 8:00-12:00-2"
+  const matchWithIndex = slot.match(/^(.+?)-(\d+)$/)
+  if (matchWithIndex && matchWithIndex[1] && matchWithIndex[2]) {
+    const baseSlot = matchWithIndex[1]
+    const doctorIndex = Number.parseInt(matchWithIndex[2], 10) - 1 // 转换为0-based索引
+    const timePeriod = getTimePeriodFromDetailSlot(baseSlot)
+    if (timePeriod !== null) {
+      return { timePeriod, doctorIndex }
+    }
+  }
+
+  // 没有索引的格式，如 "上午 8:00-12:00"
+  const timePeriod = getTimePeriodFromDetailSlot(slot)
+  if (timePeriod !== null) {
+    return { timePeriod, doctorIndex: 0 }
+  }
+
+  return null
+}
+
+/**
+ * 从简单timeSlot字符串中解析时段和医生索引
+ * @param slot 时段字符串，如 "上午" 或 "上午-1"
+ * @returns {timePeriod: number, doctorIndex: number} 或 null
+ */
+function parseSimpleTimeSlotWithIndex(slot: string): { timePeriod: number; doctorIndex: number } | null {
+  // 尝试匹配带索引的格式，如 "上午-2"
+  const matchWithIndex = slot.match(/^(.+?)-(\d+)$/)
+  if (matchWithIndex && matchWithIndex[1] && matchWithIndex[2]) {
+    const baseSlot = matchWithIndex[1]
+    const doctorIndex = Number.parseInt(matchWithIndex[2], 10) - 1 // 转换为0-based索引
+    const timePeriod = getTimePeriodFromSimpleSlot(baseSlot)
+    if (timePeriod !== null) {
+      return { timePeriod, doctorIndex }
+    }
+  }
+
+  // 没有索引的格式，如 "上午"
+  const timePeriod = getTimePeriodFromSimpleSlot(slot)
+  if (timePeriod !== null) {
+    return { timePeriod, doctorIndex: 0 }
+  }
+
+  return null
 }
 
 const getCellClassName = ({
@@ -762,10 +846,11 @@ const handleMainScheduleCellClick = (
   const columnInfo = weekDays.value.find((day) => day.prop === columnProp)
   if (!columnInfo?.date) return
 
-  const timePeriod = getTimePeriodFromDetailSlot(row.timeSlot)
-  if (!timePeriod) return
+  const parsed = parseTimeSlotWithIndex(row.timeSlot)
+  if (!parsed) return
 
-  const mapKey = `${columnInfo.date}-${timePeriod}`
+  const { timePeriod, doctorIndex } = parsed
+  const mapKey = `${columnInfo.date}-${timePeriod}-${doctorIndex}`
   const shift = scheduleMap.value.get(mapKey)
   const cellValue = row[columnProp]?.trim() ?? ''
 
@@ -811,11 +896,13 @@ const handleScheduleCellClick = (
   const columnInfo = miniWeekDays.value.find((day) => day.prop === columnProp)
   if (!columnInfo?.date) return
 
-  const timePeriod = getTimePeriodFromSimpleSlot(row.timeSlot)
-  if (!timePeriod) return
+  const parsed = parseSimpleTimeSlotWithIndex(row.timeSlot)
+  if (!parsed) return
+
+  const { timePeriod, doctorIndex } = parsed
 
   // 获取点击格子中的医生信息
-  const mapKey = `${columnInfo.date}-${timePeriod}`
+  const mapKey = `${columnInfo.date}-${timePeriod}-${doctorIndex}`
   const shift = allScheduleMap.value.get(mapKey)
   const cellValue = row[columnProp]?.trim() ?? ''
 
@@ -853,8 +940,10 @@ const getMiniScheduleCellClass = ({
   const columnInfo = miniWeekDays.value.find((day) => day.prop === columnProp)
   if (!columnInfo?.date) return ''
 
-  const timePeriod = getTimePeriodFromSimpleSlot(row.timeSlot)
-  if (!timePeriod) return ''
+  const parsed = parseSimpleTimeSlotWithIndex(row.timeSlot)
+  if (!parsed) return ''
+
+  const { timePeriod } = parsed
 
   if (
     scheduleAdjustForm.selectedShiftData &&
