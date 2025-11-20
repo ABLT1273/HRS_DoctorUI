@@ -11,13 +11,11 @@ import type { Shift, Patient, AddNumberApplication, Notification } from '@/servi
 export const TIME_PERIOD_MAP: Record<number, string> = {
   1: '上午',
   2: '下午',
-  3: '晚上',
 }
 
 export const TIME_PERIOD_DETAIL_MAP: Record<number, string> = {
   1: '上午 8:00-12:00',
   2: '下午 14:00-18:00',
-  3: '晚上 19:00-21:00',
 }
 
 /**
@@ -26,7 +24,6 @@ export const TIME_PERIOD_DETAIL_MAP: Record<number, string> = {
 export const TIME_PERIOD_REVERSE_MAP: Record<string, number> = {
   上午: 1,
   下午: 2,
-  晚上: 3,
 }
 
 /**
@@ -142,21 +139,17 @@ function getMonday(date: Date): Date {
 }
 
 /**
- * 将前端排班数据转换为周排班表格式
+ * 将前端排班数据转换为周排班表格式（支持格分裂：同一时段多个医生显示在不同行）
  */
 export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransformResult {
   console.log('转换排班数据，接收到的shifts:', shifts)
-  const scheduleData: WeekScheduleRow[] = [
-    { timeSlot: TIME_PERIOD_DETAIL_MAP[1] || '上午 8:00-12:00' },
-    { timeSlot: TIME_PERIOD_DETAIL_MAP[2] || '下午 14:00-18:00' },
-    { timeSlot: TIME_PERIOD_DETAIL_MAP[3] || '晚上 19:00-21:00' },
-  ]
 
   const weekDays: WeekDayColumn[] = []
   const today = new Date()
   const startMonday = getMonday(new Date(today))
   console.log('排班表起始周一:', startMonday.toISOString().split('T')[0])
 
+  // 生成日期列
   for (let week = 0; week < 2; week++) {
     const daysInWeek = 7
 
@@ -168,7 +161,6 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
       const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
       const dayLabel = dayNames[day]
 
-      // 计算每一天的日期，用于显示"月.日"
       const dayMonth = currentDate.getMonth() + 1
       const dayDay = currentDate.getDate()
       const dayDate = `${dayMonth}.${dayDay}`
@@ -184,30 +176,82 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
         weekLabel,
         dayDate,
       })
-
-      scheduleData[0]![prop] = ''
-      scheduleData[1]![prop] = ''
-      scheduleData[2]![prop] = ''
     }
   }
 
-  const scheduleMap = new Map<string, Shift>()
+  // 按日期和时段分组所有班次
+  const shiftsByDateAndPeriod = new Map<string, Shift[]>()
   for (const shift of shifts) {
-    const mapKey = `${shift.date}-${shift.timePeriod}`
-    scheduleMap.set(mapKey, shift)
+    const key = `${shift.date}-${shift.timePeriod}`
+    if (!shiftsByDateAndPeriod.has(key)) {
+      shiftsByDateAndPeriod.set(key, [])
+    }
+    shiftsByDateAndPeriod.get(key)!.push(shift)
+  }
 
-    const column = weekDays.find((col) => col.date === shift.date)
-    console.log(`处理排班: ${shift.date} ${shift.docName}, 找到列:`, column?.label)
-    if (column) {
-      const rowIndex = shift.timePeriod - 1
-      if (rowIndex >= 0 && rowIndex < 3) {
-        // 只显示诊室位置，不显示医生名
-        const cellContent = shift.clinicPlace || ''
-        console.log(`  -> 填充到 [${rowIndex}][${column.prop}] = ${cellContent}`)
-        scheduleData[rowIndex]![column.prop] = cellContent
+  // 计算每个时段的最大医生数
+  const maxDoctorsPerPeriod: Record<number, number> = { 1: 1, 2: 1 }
+  weekDays.forEach((dayCol) => {
+    for (const timePeriod of [1, 2]) {
+      const key = `${dayCol.date}-${timePeriod}`
+      const shiftsInCell = shiftsByDateAndPeriod.get(key) || []
+      maxDoctorsPerPeriod[timePeriod] = Math.max(
+        maxDoctorsPerPeriod[timePeriod]!,
+        shiftsInCell.length,
+      )
+    }
+  })
+
+  console.log('每个时段的最大医生数:', maxDoctorsPerPeriod)
+
+  // 创建行数据：为每个时段创建足够的行
+  const scheduleData: WeekScheduleRow[] = []
+  for (const timePeriod of [1, 2]) {
+    const periodLabel = TIME_PERIOD_DETAIL_MAP[timePeriod] || ''
+    const maxDoctors = maxDoctorsPerPeriod[timePeriod]!
+
+    for (let doctorIndex = 0; doctorIndex < maxDoctors; doctorIndex++) {
+      const row: WeekScheduleRow = {
+        timeSlot: maxDoctors > 1 ? `${periodLabel}-${doctorIndex + 1}` : periodLabel,
       }
+      // 初始化所有列为空
+      weekDays.forEach((dayCol) => {
+        row[dayCol.prop] = ''
+      })
+      scheduleData.push(row)
     }
   }
+
+  // 填充数据
+  const scheduleMap = new Map<string, Shift>()
+  weekDays.forEach((dayCol) => {
+    for (const timePeriod of [1, 2]) {
+      const key = `${dayCol.date}-${timePeriod}`
+      const shiftsInCell = shiftsByDateAndPeriod.get(key) || []
+
+      shiftsInCell.forEach((shift, index) => {
+        // 将每个医生的排班信息存入map，使用索引区分同一时段的不同医生
+        const mapKey = `${shift.date}-${shift.timePeriod}-${index}`
+        scheduleMap.set(mapKey, shift)
+
+        // 计算当前医生应该在哪一行
+        let rowOffset = 0
+        for (let p = 1; p < timePeriod; p++) {
+          rowOffset += maxDoctorsPerPeriod[p]!
+        }
+        const rowIndex = rowOffset + index
+
+        if (rowIndex < scheduleData.length) {
+          // 显示诊室位置或医生名
+          const cellContent = shift.clinicPlace || shift.docName || ''
+          console.log(
+            `  -> 填充到 [${rowIndex}][${dayCol.prop}] = ${cellContent} (时段${timePeriod}, 医生${index})`,
+          )
+          scheduleData[rowIndex]![dayCol.prop] = cellContent
+        }
+      })
+    }
+  })
 
   console.log('转换后的排班数据:', scheduleData)
   return { scheduleData, weekDays, scheduleMap }
