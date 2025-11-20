@@ -300,7 +300,8 @@ function createSSEConnection<T>(
   onError?: SSEErrorHandler,
 ): EventSource {
   const token = localStorage.getItem('token')
-  const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/doctor'
+  // 使用相对路径，通过 Vite 代理访问后端，避免 CORS 问题
+  const baseURL = import.meta.env.VITE_API_BASE_URL || '/doctor'
 
   // 构建完整 URL 并添加 token
   const fullUrl = `${baseURL}${url}${url.includes('?') ? '&' : '?'}token=${token}`
