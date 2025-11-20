@@ -162,7 +162,12 @@
                 <el-tab-pane label="系统通知" name="notification">
                   <div v-if="notificationList.length" class="notification-list">
                     <div v-for="item in notificationList" :key="item.id" class="notification-item">
-                      <div class="notification-title">{{ item.title }}</div>
+                      <div class="notification-header">
+                        <div class="notification-title">{{ item.title }}</div>
+                        <el-button type="primary" size="small" @click="showNotificationDetail(item)">
+                          查看
+                        </el-button>
+                      </div>
                       <div class="notification-content">{{ item.content }}</div>
                       <div class="notification-time">{{ item.time }}</div>
                     </div>
@@ -349,6 +354,31 @@
           </template>
         </div>
       </div>
+    </el-dialog>
+
+    <!-- 通知详情弹窗 -->
+    <el-dialog
+      v-model="notificationDialogVisible"
+      :title="currentNotification.title"
+      width="600px"
+      @close="closeNotificationDialog"
+    >
+      <div class="notification-detail-container">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="标题">
+            {{ currentNotification.title }}
+          </el-descriptions-item>
+          <el-descriptions-item label="时间">
+            {{ currentNotification.time }}
+          </el-descriptions-item>
+          <el-descriptions-item label="详细内容">
+            <div class="notification-detail-content">{{ currentNotification.content }}</div>
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="closeNotificationDialog">关闭</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -1061,6 +1091,35 @@ const closePatientInfoDialog = () => {
   }
 }
 
+// 通知详情弹窗
+const notificationDialogVisible = ref(false)
+const currentNotification = ref({
+  id: '',
+  title: '',
+  content: '',
+  time: '',
+})
+
+const showNotificationDetail = (notification: FrontendNotification) => {
+  currentNotification.value = {
+    id: notification.id,
+    title: notification.title,
+    content: notification.content,
+    time: notification.time,
+  }
+  notificationDialogVisible.value = true
+}
+
+const closeNotificationDialog = () => {
+  notificationDialogVisible.value = false
+  currentNotification.value = {
+    id: '',
+    title: '',
+    content: '',
+    time: '',
+  }
+}
+
 const formatRecordTime = (value?: string) => (value ? formatDateTime(value) : '—')
 
 const handleDiagnosis = async (index: number) => {
@@ -1490,16 +1549,28 @@ onMounted(() => {
   border-bottom: 1px solid #eee;
 }
 
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
 .notification-title {
   font-weight: bold;
   color: #303133;
-  margin-bottom: 5px;
+  flex: 1;
 }
 
 .notification-content {
   color: #606266;
   margin-bottom: 5px;
   font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .notification-time {
@@ -1670,6 +1741,17 @@ onMounted(() => {
 .patient-info-container {
   max-height: 600px;
   overflow-y: auto;
+}
+
+.notification-detail-container {
+  padding: 10px 0;
+}
+
+.notification-detail-content {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: #303133;
+  font-size: 14px;
 }
 
 .basic-info-section {
