@@ -147,10 +147,21 @@ export function useDoctorData() {
   function subscribeSystemNotifications() {
     if (!doctorId.value) return
 
+    // 开发环境下先加载Mock数据,便于前端开发和测试
+    if (import.meta.env.DEV) {
+      import('@/mock/notifications').then((module) => {
+        notifications.value = module.getMockNotifications()
+        console.log('已加载系统通知Mock数据:', notifications.value)
+      })
+    }
+
     notificationEventSource = subscribeNotifications(
       doctorId.value,
       (data) => {
+        console.log('[useDoctorData] SSE 回调收到通知 data:', data)
+        console.log('[useDoctorData] notifications:', data.notifications)
         notifications.value = data.notifications
+        console.log('[useDoctorData] 已更新 notifications.value:', notifications.value)
       },
       (error) => {
         console.error('系统通知SSE错误:', error)

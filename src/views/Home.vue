@@ -1,5 +1,8 @@
 <template>
   <div class="home-container">
+    <!-- 系统通知栏 -->
+    <NotificationBar :notifications="notifications" @view-all="handleViewAllNotifications" />
+
     <el-container>
       <el-header>
         <div class="header-top">
@@ -357,6 +360,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import NotificationBar from '@/components/NotificationBar.vue'
 import {
   transformScheduleToWeekTable,
   transformPatient,
@@ -1292,6 +1296,20 @@ const handleTabSelect = (index: string) => {
   activeTab.value = index as 'duty' | 'personal'
 }
 
+const handleViewAllNotifications = () => {
+  // 切换到值班信息标签页
+  activeTab.value = 'duty'
+  // 切换到系统通知子标签页
+  activeNotificationTab.value = 'notification'
+  // 平滑滚动到通知区域
+  setTimeout(() => {
+    const notificationSection = document.querySelector('.notification-section')
+    if (notificationSection) {
+      notificationSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, 100)
+}
+
 watch(error, (message) => {
   if (message) {
     ElMessage.error(message)
@@ -1332,6 +1350,11 @@ onMounted(() => {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+.home-container .el-container {
+  margin-top: 0;
+  transition: margin-top 0.3s ease-out;
 }
 
 /* 班次单元格样式 - 统一的背景色突出显示 */
