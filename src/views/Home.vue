@@ -157,9 +157,16 @@
                 <el-tab-pane label="系统通知" name="notification">
                   <div v-if="notificationList.length" class="notification-list">
                     <div v-for="item in notificationList" :key="item.id" class="notification-item">
-                      <div class="notification-title">{{ item.title }}</div>
-                      <div class="notification-content">{{ item.content }}</div>
-                      <div class="notification-time">{{ item.time }}</div>
+                      <div class="notification-header">
+                        <div class="notification-title">{{ item.title }}</div>
+                        <el-button
+                          size="small"
+                          type="primary"
+                          @click="viewNotificationDetail(item)"
+                        >
+                          查看
+                        </el-button>
+                      </div>
                     </div>
                   </div>
                   <el-empty v-else description="暂无系统通知" />
@@ -303,6 +310,23 @@
       <template #footer>
         <el-button @click="closeScheduleAdjustDialog">取消</el-button>
         <el-button type="primary" @click="submitScheduleAdjust">提交</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 通知详情弹窗 -->
+    <el-dialog
+      v-model="notificationDetailDialogVisible"
+      title="通知详情"
+      width="600px"
+      @close="closeNotificationDetailDialog"
+    >
+      <div class="notification-detail-container">
+        <div class="notification-detail-title">{{ currentNotification.title }}</div>
+        <div class="notification-detail-content">{{ currentNotification.content }}</div>
+        <div class="notification-detail-time">发布时间：{{ currentNotification.time }}</div>
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="closeNotificationDetailDialog">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -770,7 +794,9 @@ function parseTimeSlotWithIndex(slot: string): { timePeriod: number; doctorIndex
  * @param slot 时段字符串，如 "上午" 或 "上午-1"
  * @returns {timePeriod: number, doctorIndex: number} 或 null
  */
-function parseSimpleTimeSlotWithIndex(slot: string): { timePeriod: number; doctorIndex: number } | null {
+function parseSimpleTimeSlotWithIndex(
+  slot: string,
+): { timePeriod: number; doctorIndex: number } | null {
   // 尝试匹配带索引的格式，如 "上午-2"
   const matchWithIndex = slot.match(/^(.+?)-(\d+)$/)
   if (matchWithIndex && matchWithIndex[1] && matchWithIndex[2]) {
@@ -1101,6 +1127,32 @@ const decideAddNumber = async (request: AddNumberApplication, approved: boolean)
     } else {
       ElMessage.error('加号申请处理失败')
     }
+  }
+}
+
+// 通知详情弹窗相关
+const notificationDetailDialogVisible = ref(false)
+const currentNotification = ref({
+  title: '',
+  content: '',
+  time: '',
+})
+
+const viewNotificationDetail = (notification: FrontendNotification) => {
+  currentNotification.value = {
+    title: notification.title,
+    content: notification.content,
+    time: notification.time,
+  }
+  notificationDetailDialogVisible.value = true
+}
+
+const closeNotificationDetailDialog = () => {
+  notificationDetailDialogVisible.value = false
+  currentNotification.value = {
+    title: '',
+    content: '',
+    time: '',
   }
 }
 
@@ -1580,25 +1632,49 @@ onMounted(() => {
 }
 
 .notification-item {
-  padding: 10px 0;
+  padding: 10px;
   border-bottom: 1px solid #eee;
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .notification-title {
   font-weight: bold;
   color: #303133;
-  margin-bottom: 5px;
+  flex: 1;
 }
 
-.notification-content {
+/* 通知详情弹窗样式 */
+.notification-detail-container {
+  padding: 10px 0;
+}
+
+.notification-detail-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #409eff;
+}
+
+.notification-detail-content {
   color: #606266;
-  margin-bottom: 5px;
   font-size: 14px;
+  line-height: 1.8;
+  margin-bottom: 20px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
-.notification-time {
+.notification-detail-time {
   color: #909399;
   font-size: 12px;
+  text-align: right;
 }
 
 /* 加号申请列表样式 */
