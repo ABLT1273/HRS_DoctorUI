@@ -153,8 +153,18 @@
 
             <!-- 通知栏和加号申请 -->
             <div class="notification-section">
-              <el-tabs v-model="activeNotificationTab">
-                <el-tab-pane label="系统通知" name="notification">
+              <el-tabs v-model="activeNotificationTab" @tab-click="handleNotificationTabClick">
+                <el-tab-pane name="notification">
+                  <template #label>
+                    <span class="notification-tab-label">
+                      系统通知
+                      <el-badge
+                        v-if="newNotificationCount > 0"
+                        :value="newNotificationCount"
+                        class="notification-badge"
+                      />
+                    </span>
+                  </template>
                   <div v-if="notificationList.length" class="notification-list">
                     <div v-for="item in notificationList" :key="item.id" class="notification-item">
                       <div class="notification-header">
@@ -397,7 +407,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import {
   transformScheduleToWeekTable,
   transformPatient,
@@ -473,6 +483,8 @@ const {
   loadAllShifts,
   updatePatientStatusLocal,
   clearPatientStatus,
+  newNotificationCount,
+  clearNewNotificationCount,
   cleanup,
 } = useDoctorData()
 
@@ -1432,6 +1444,14 @@ const handleTabSelect = (index: string) => {
   activeTab.value = index as 'duty' | 'personal'
 }
 
+// 点击通知/加号申请标签时的处理
+const handleNotificationTabClick = (tab: { paneName: string }) => {
+  if (tab.paneName === 'notification') {
+    // 点击系统通知标签时清除红点计数
+    clearNewNotificationCount()
+  }
+}
+
 watch(error, (message) => {
   if (message) {
     ElMessage.error(message)
@@ -1448,6 +1468,25 @@ watch(
   },
   { immediate: true },
 )
+
+// 监听新通知计数，显示右下角弹窗提示
+watch(newNotificationCount, (count) => {
+  if (count > 0) {
+    ElNotification({
+      title: '系统通知',
+      message: `有 ${count} 条系统通知待确认`,
+      type: 'warning',
+      position: 'bottom-right',
+      duration: 5000,
+      onClick: () => {
+        // 点击弹窗切换到系统通知标签
+        activeTab.value = 'duty'
+        activeNotificationTab.value = 'notification'
+        clearNewNotificationCount()
+      },
+    })
+  }
+})
 
 onMounted(() => {
   const storedToken = localStorage.getItem('token')
@@ -1717,6 +1756,21 @@ onMounted(() => {
 .notification-list {
   height: 420px;
   overflow-y: auto;
+}
+
+/* 系统通知标签带红点样式 */
+.notification-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notification-badge {
+  margin-left: 4px;
+}
+
+.notification-badge :deep(.el-badge__content) {
+  transform: scale(0.85);
 }
 
 .notification-item {

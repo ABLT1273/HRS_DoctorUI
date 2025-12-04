@@ -25,6 +25,11 @@ export function useDoctorData() {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  // 新通知计数（未确认的新通知数量）
+  const newNotificationCount = ref(0)
+  // 是否为初始化加载
+  let isInitialNotificationLoad = true
+
   // 本地患者状态缓存 (registerId -> patientStatus)
   const patientStatusCache = new Map<string, number>()
 
@@ -150,12 +155,31 @@ export function useDoctorData() {
     notificationEventSource = subscribeNotifications(
       doctorId.value,
       (data) => {
+        const oldIds = new Set(notifications.value.map((n) => n.id))
         notifications.value = data.notifications
+
+        // 如果不是初始化加载，检查是否有新通知
+        if (!isInitialNotificationLoad) {
+          const newNotifications = data.notifications.filter(
+            (n) => !oldIds.has(n.id) && !n.accepted,
+          )
+          if (newNotifications.length > 0) {
+            newNotificationCount.value += newNotifications.length
+          }
+        } else {
+          // 初始化完成后，标记不再是初始加载
+          isInitialNotificationLoad = false
+        }
       },
       (error) => {
         console.error('系统通知SSE错误:', error)
       },
     )
+  }
+
+  // 清除新通知计数
+  function clearNewNotificationCount() {
+    newNotificationCount.value = 0
   }
 
   // 初始化数据
@@ -200,6 +224,7 @@ export function useDoctorData() {
     patients,
     addNumberRequests,
     notifications,
+    newNotificationCount,
     loading,
     error,
     loadDoctorProfile,
@@ -208,6 +233,7 @@ export function useDoctorData() {
     loadPatients,
     updatePatientStatusLocal,
     clearPatientStatus,
+    clearNewNotificationCount,
     initialize,
     cleanup,
   }
