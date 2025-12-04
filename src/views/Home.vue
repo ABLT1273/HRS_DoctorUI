@@ -159,13 +159,23 @@
                     <div v-for="item in notificationList" :key="item.id" class="notification-item">
                       <div class="notification-header">
                         <div class="notification-title">{{ item.title }}</div>
-                        <el-button
-                          size="small"
-                          type="primary"
-                          @click="viewNotificationDetail(item)"
-                        >
-                          查看
-                        </el-button>
+                        <div class="notification-actions">
+                          <el-button
+                            size="small"
+                            :type="item.accepted ? 'info' : 'success'"
+                            :disabled="item.accepted"
+                            @click="handleAcceptNotification(item)"
+                          >
+                            {{ item.accepted ? '已确认' : '确认' }}
+                          </el-button>
+                          <el-button
+                            size="small"
+                            type="primary"
+                            @click="viewNotificationDetail(item)"
+                          >
+                            查看
+                          </el-button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -326,6 +336,13 @@
         <div class="notification-detail-time">发布时间：{{ currentNotification.time }}</div>
       </div>
       <template #footer>
+        <el-button
+          :type="currentNotification.accepted ? 'info' : 'success'"
+          :disabled="currentNotification.accepted"
+          @click="handleAcceptNotificationInDialog"
+        >
+          {{ currentNotification.accepted ? '已确认' : '确认' }}
+        </el-button>
         <el-button type="primary" @click="closeNotificationDetailDialog">关闭</el-button>
       </template>
     </el-dialog>
@@ -400,6 +417,7 @@ import {
   submitAddNumberResult,
   updatePatientStatus,
   getRegisterRecords,
+  acceptNotification,
 } from '@/services/api'
 import { useDoctorData } from '@/composables/useDoctorData'
 import type {
@@ -1133,16 +1151,20 @@ const decideAddNumber = async (request: AddNumberApplication, approved: boolean)
 // 通知详情弹窗相关
 const notificationDetailDialogVisible = ref(false)
 const currentNotification = ref({
+  id: '',
   title: '',
   content: '',
   time: '',
+  accepted: false,
 })
 
 const viewNotificationDetail = (notification: FrontendNotification) => {
   currentNotification.value = {
+    id: notification.id,
     title: notification.title,
     content: notification.content,
     time: notification.time,
+    accepted: notification.accepted,
   }
   notificationDetailDialogVisible.value = true
 }
@@ -1150,9 +1172,75 @@ const viewNotificationDetail = (notification: FrontendNotification) => {
 const closeNotificationDetailDialog = () => {
   notificationDetailDialogVisible.value = false
   currentNotification.value = {
+    id: '',
     title: '',
     content: '',
     time: '',
+    accepted: false,
+  }
+}
+
+// 确认通知（列表中的确认按钮）
+const handleAcceptNotification = async (notification: FrontendNotification) => {
+  if (!doctorId.value) {
+    ElMessage.error('医生信息已失效，请重新登录')
+    router.push('/login')
+    return
+  }
+
+  try {
+    const response = await acceptNotification({
+      id: notification.id,
+      docId: doctorId.value,
+    })
+    if (response.code !== 200) {
+      throw new Error(response.msg || '确认失败')
+    }
+    // 更新本地状态
+    const idx = notifications.value.findIndex((n) => n.id === notification.id)
+    if (idx !== -1) {
+      notifications.value[idx].accepted = true
+    }
+    ElMessage.success('已确认通知')
+  } catch (err) {
+    if (err instanceof Error) {
+      ElMessage.error(err.message)
+    } else {
+      ElMessage.error('确认通知失败')
+    }
+  }
+}
+
+// 确认通知（弹窗中的确认按钮）
+const handleAcceptNotificationInDialog = async () => {
+  if (!doctorId.value) {
+    ElMessage.error('医生信息已失效，请重新登录')
+    router.push('/login')
+    return
+  }
+
+  try {
+    const response = await acceptNotification({
+      id: currentNotification.value.id,
+      docId: doctorId.value,
+    })
+    if (response.code !== 200) {
+      throw new Error(response.msg || '确认失败')
+    }
+    // 更新本地状态
+    const idx = notifications.value.findIndex((n) => n.id === currentNotification.value.id)
+    if (idx !== -1) {
+      notifications.value[idx].accepted = true
+    }
+    // 更新弹窗中的状态
+    currentNotification.value.accepted = true
+    ElMessage.success('已确认通知')
+  } catch (err) {
+    if (err instanceof Error) {
+      ElMessage.error(err.message)
+    } else {
+      ElMessage.error('确认通知失败')
+    }
   }
 }
 
@@ -1646,6 +1734,11 @@ onMounted(() => {
   font-weight: bold;
   color: #303133;
   flex: 1;
+}
+
+.notification-actions {
+  display: flex;
+  gap: 8px;
 }
 
 /* 通知详情弹窗样式 */

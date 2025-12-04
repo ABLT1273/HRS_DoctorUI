@@ -12,6 +12,7 @@ import type {
   AddNumberResultRequest,
   AddNumberResultResponse,
   NotificationsResponse,
+  NotificationAcceptedRequest,
   DoctorProfileResponse,
   ScheduleChangeRequest,
   ScheduleChangeResponse,
@@ -217,9 +218,12 @@ export async function getRegisterRecords(
   registerId: string,
   docId?: string,
 ): Promise<RegisterRecordsResponse> {
-  const response = await apiClient.get<ApiResponse<RegisterRecordsResponse>>(`/register/${registerId}`, {
-    params: { docId },
-  })
+  const response = await apiClient.get<ApiResponse<RegisterRecordsResponse>>(
+    `/register/${registerId}`,
+    {
+      params: { docId },
+    },
+  )
   const data = response.data as any
   // 处理后端返回的嵌套结构 { code, msg, data: { records: [...] } }
   if (data.data && Array.isArray(data.data.records)) {
@@ -285,6 +289,17 @@ export async function submitScheduleChangeRequest(
  */
 export async function updatePatientStatus(request: PatientStatusRequest): Promise<ApiResponse> {
   const response = await apiClient.post<ApiResponse>('/patient/status', request)
+  return response.data
+}
+
+/**
+ * 确认通知消息
+ * POST /doctor/notification_accepted
+ */
+export async function acceptNotification(
+  request: NotificationAcceptedRequest,
+): Promise<ApiResponse> {
+  const response = await apiClient.post<ApiResponse>('/notification_accepted', request)
   return response.data
 }
 

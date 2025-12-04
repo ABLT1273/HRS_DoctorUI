@@ -91,10 +91,17 @@ export interface Notification {
   title: string
   content: string
   createdAt: string // ISO datetime format
+  accepted?: boolean // 是否已确认
 }
 
 export interface NotificationsResponse {
   notifications: Notification[]
+}
+
+// 通知确认请求
+export interface NotificationAcceptedRequest {
+  id: string // 消息记录ID
+  docId: string // 医生ID
 }
 
 // 医生个人信息

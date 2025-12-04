@@ -99,6 +99,7 @@ export interface FrontendNotification {
   title: string
   content: string
   time: string
+  accepted: boolean // 是否已确认
 }
 
 export function transformNotification(apiNotification: Notification): FrontendNotification {
@@ -107,6 +108,7 @@ export function transformNotification(apiNotification: Notification): FrontendNo
     title: apiNotification.title,
     content: apiNotification.content,
     time: formatDateTime(apiNotification.createdAt),
+    accepted: apiNotification.accepted ?? false,
   }
 }
 
