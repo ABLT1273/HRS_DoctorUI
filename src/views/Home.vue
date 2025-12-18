@@ -78,13 +78,6 @@
                   >
                     当前排班
                   </el-button>
-                  <el-button
-                    :type="forceMode ? 'danger' : 'warning'"
-                    @click="forceMode = !forceMode"
-                    style="margin-left: 10px"
-                  >
-                    {{ forceMode ? '✓ 强制模式' : '强制接诊' }}
-                  </el-button>
                 </div>
                 <div class="right-controls">
                   <el-input
@@ -241,6 +234,13 @@
               <el-descriptions-item label="科室">{{ doctorDepartment }}</el-descriptions-item>
               <el-descriptions-item label="职称">{{ doctorTitle }}</el-descriptions-item>
             </el-descriptions>
+
+            <div class="doctor-description-box">
+              <h3>个人简介</h3>
+              <div class="description-content">
+                {{ doctorDescription }}
+              </div>
+            </div>
           </div>
         </div>
       </el-main>
@@ -289,7 +289,6 @@
               <el-table
                 :data="miniScheduleData"
                 border
-                style="width: 100%"
                 highlight-current-row
                 @cell-click="handleScheduleCellClick"
                 :cell-class-name="getMiniScheduleCellClass"
@@ -299,9 +298,15 @@
                   v-for="(day, index) in miniWeekDays"
                   :key="index"
                   :prop="day.prop"
-                  :label="day.label"
-                  width="80"
-                />
+                  width="90"
+                >
+                  <template #header>
+                    <div class="custom-header">
+                      <div class="week-label">{{ day.label }}</div>
+                      <div class="week-date">{{ day.dayDate }}</div>
+                    </div>
+                  </template>
+                </el-table-column>
               </el-table>
             </div>
             <div v-if="scheduleAdjustForm.selectedShiftLabel" class="selected-shift-info">
@@ -498,6 +503,7 @@ const doctorIdDisplay = computed(() => doctorProfile.value?.doctorId || doctorId
 const doctorAccountDisplay = computed(() => storedDoctorAccount.value || '—')
 const doctorDepartment = computed(() => doctorProfile.value?.department || '—')
 const doctorTitle = computed(() => doctorProfile.value?.title || '—')
+const doctorDescription = computed(() => doctorProfile.value?.description || '暂无个人简介')
 
 const scheduleTransform = computed(() => transformScheduleToWeekTable(shifts.value || []))
 const scheduleData = computed(() => scheduleTransform.value.scheduleData)
@@ -548,7 +554,6 @@ const notificationList = computed<FrontendNotification[]>(() =>
 
 const showCurrentShift = ref(false)
 const searchName = ref('')
-const forceMode = ref(false) // 强制接诊模式（测试用）
 
 /**
  * 检查是否有患者正在就诊中
@@ -566,8 +571,8 @@ function getCurrentTimePeriod(): number | null {
   const now = new Date()
   const hour = now.getHours()
 
-  if (hour >= 8 && hour < 14) return 1 // 上午 8:00-14:00
-  if (hour >= 14 && hour < 19) return 2 // 下午 14:00-19:00
+  if (hour >= 8 && hour < 14) return 1 // 上午 8:00-13:30
+  if (hour >= 14 && hour < 19) return 2 // 下午 13:30-19:00
 
   return null // 不在任何就诊时段内
 }
@@ -579,11 +584,6 @@ function getCurrentTimePeriod(): number | null {
  * @returns true 表示可以接诊，false 表示不可接诊
  */
 function canDiagnosePatient(patientTimePeriod: number, patientDate: string): boolean {
-  // 强制模式下无视所有时间限制
-  if (forceMode.value) {
-    return true
-  }
-
   const currentPeriod = getCurrentTimePeriod()
   if (currentPeriod === null) {
     return false // 不在任何就诊时段内
@@ -730,7 +730,10 @@ const scheduleAdjustForm = reactive({
   shiftReason: '',
 })
 
-const miniWeekDays = computed(() => weekDays.value.slice(0, Math.min(7, weekDays.value.length)))
+const miniWeekDays = computed(() => {
+  // 修改：直接返回所有 14 天，不再分周显示
+  return weekDays.value
+})
 
 // 为调班对话框创建单独的排班数据转换
 const allScheduleTransform = computed(() => transformScheduleToWeekTable(allShifts.value || []))
@@ -774,7 +777,14 @@ const miniScheduleData = computed<MiniScheduleRow[]>(() => {
       miniWeekDays.value.forEach(({ prop, date }) => {
         const key = `${date}-${timePeriod}`
         const shiftsInCell = shiftsByDateAndPeriod.get(key) || []
-        row[prop] = shiftsInCell[doctorIndex]?.docName ?? ''
+        const shift = shiftsInCell[doctorIndex]
+        if (shift) {
+          const name = shift.docName || ''
+          const place = shift.clinicPlace ? ` (${shift.clinicPlace})` : ''
+          row[prop] = `${name}${place}`
+        } else {
+          row[prop] = ''
+        }
       })
 
       rows.push(row)
@@ -795,11 +805,11 @@ function getTimePeriodFromSimpleSlot(slot: string): number | null {
 
 /**
  * 从timeSlot字符串中解析时段和医生索引
- * @param slot 时段字符串，如 "上午 8:00-12:00" 或 "上午 8:00-12:00-1"
+ * @param slot 时段字符串，如 "上午 8:00-12:30" 或 "上午 8:00-12:30-1"
  * @returns {timePeriod: number, doctorIndex: number} 或 null
  */
 function parseTimeSlotWithIndex(slot: string): { timePeriod: number; doctorIndex: number } | null {
-  // 尝试匹配带索引的格式，如 "上午 8:00-12:00-2"
+  // 尝试匹配带索引的格式，如 "上午 8:00-12:30-2"
   const matchWithIndex = slot.match(/^(.+?)-(\d+)$/)
   if (matchWithIndex && matchWithIndex[1] && matchWithIndex[2]) {
     const baseSlot = matchWithIndex[1]
@@ -810,7 +820,7 @@ function parseTimeSlotWithIndex(slot: string): { timePeriod: number; doctorIndex
     }
   }
 
-  // 没有索引的格式，如 "上午 8:00-12:00"
+  // 没有索引的格式，如 "上午 8:00-12:30"
   const timePeriod = getTimePeriodFromDetailSlot(slot)
   if (timePeriod !== null) {
     return { timePeriod, doctorIndex: 0 }
@@ -936,8 +946,8 @@ const handleMainScheduleCellClick = (
     shift,
   }
 
-  scheduleAdjustForm.selectedShiftLabel = `${columnInfo.label} ${row.timeSlot}`
-  ElMessage.success(`已选择：${columnInfo.label} ${row.timeSlot}`)
+  scheduleAdjustForm.selectedShiftLabel = `${columnInfo.dayDate} ${columnInfo.label} ${row.timeSlot}`
+  ElMessage.success(`已选择：${columnInfo.dayDate} ${columnInfo.label} ${row.timeSlot}`)
 }
 
 const handleScheduleCellClick = (
@@ -961,7 +971,7 @@ const handleScheduleCellClick = (
   const shift = allScheduleMap.value.get(mapKey)
   const cellValue = row[columnProp]?.trim() ?? ''
 
-  scheduleAdjustForm.selectedShiftLabel = `${columnInfo.label} ${row.timeSlot}`
+  scheduleAdjustForm.selectedShiftLabel = `${columnInfo.dayDate} ${columnInfo.label} ${row.timeSlot}`
   scheduleAdjustForm.selectedShiftData = {
     date: columnInfo.date,
     timePeriod,
@@ -971,9 +981,13 @@ const handleScheduleCellClick = (
 
   // 显示选择信息
   if (cellValue) {
-    ElMessage.success(`已选择与 ${cellValue} 调班：${columnInfo.label} ${row.timeSlot}`)
+    ElMessage.success(
+      `已选择与 ${cellValue} 调班：${columnInfo.dayDate} ${columnInfo.label} ${row.timeSlot}`,
+    )
   } else {
-    ElMessage.success(`已选择调到空闲时间：${columnInfo.label} ${row.timeSlot}`)
+    ElMessage.success(
+      `已选择调到空闲时间：${columnInfo.dayDate} ${columnInfo.label} ${row.timeSlot}`,
+    )
   }
 }
 
@@ -998,7 +1012,7 @@ const getMiniScheduleCellClass = ({
   const parsed = parseSimpleTimeSlotWithIndex(row.timeSlot)
   if (!parsed) return ''
 
-  const { timePeriod } = parsed
+  const { timePeriod, doctorIndex } = parsed
 
   if (
     scheduleAdjustForm.selectedShiftData &&
@@ -1008,10 +1022,11 @@ const getMiniScheduleCellClass = ({
     return 'selected-schedule-cell'
   }
 
-  const cellValue = row[columnProp]?.trim() ?? ''
+  const mapKey = `${columnInfo.date}-${timePeriod}-${doctorIndex}`
+  const shift = allScheduleMap.value.get(mapKey)
 
-  if (cellValue) {
-    if (currentDoctorName.value && cellValue === currentDoctorName.value) {
+  if (shift) {
+    if (doctorId.value && shift.docId === doctorId.value) {
       return 'doctor-duty-cell'
     }
     return 'other-duty-cell'
@@ -1026,9 +1041,14 @@ const resetScheduleAdjustForm = () => {
   scheduleAdjustForm.leaveReason = ''
   scheduleAdjustForm.shiftReason = ''
   scheduleAdjustForm.selectedShiftData = null
-  scheduleAdjustForm.selectedShiftLabel = selectedScheduleShift.value
-    ? `${selectedScheduleShift.value.dayLabel} ${selectedScheduleShift.value.timeSlot}`
-    : ''
+
+  if (selectedScheduleShift.value) {
+    const dateParts = selectedScheduleShift.value.date.split('-')
+    const dayDate = `${Number(dateParts[1])}.${Number(dateParts[2])}`
+    scheduleAdjustForm.selectedShiftLabel = `${dayDate} ${selectedScheduleShift.value.dayLabel} ${selectedScheduleShift.value.timeSlot}`
+  } else {
+    scheduleAdjustForm.selectedShiftLabel = ''
+  }
 }
 
 const openScheduleAdjustDialog = async () => {
@@ -1322,21 +1342,16 @@ const handleDiagnosis = async (index: number) => {
     return
   }
 
-  // 检查是否已有患者正在就诊中（强制模式下跳过检查）
-  if (!forceMode.value && hasPatientInDiagnosis.value) {
+  // 检查是否已有患者正在就诊中
+  if (hasPatientInDiagnosis.value) {
     ElMessage.warning('当前已有患者正在就诊中，请先完成当前患者的就诊')
     return
   }
 
-  // 检查是否在就诊时间内（强制模式下跳过检查）
-  if (!forceMode.value && !canDiagnosePatient(entry.display.timePeriod, entry.display.date)) {
+  // 检查是否在就诊时间内
+  if (!canDiagnosePatient(entry.display.timePeriod, entry.display.date)) {
     ElMessage.warning('当前不在就诊时间')
     return
-  }
-
-  // 强制模式提示
-  if (forceMode.value) {
-    console.log('⚠️ 强制接诊模式：已跳过所有限制检查')
   }
 
   try {
@@ -1907,6 +1922,15 @@ onMounted(() => {
 /* 调整排班弹窗样式 */
 .mini-schedule {
   margin-bottom: 15px;
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+
+.mini-schedule :deep(.el-table) {
+  width: max-content !important;
+  min-width: 100%;
 }
 
 .mini-schedule :deep(.el-table__cell) {
@@ -2013,5 +2037,32 @@ onMounted(() => {
 
 .records-section {
   margin-top: 20px;
+}
+
+.doctor-description-box {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.doctor-description-box h3 {
+  margin: 0 0 15px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #409eff;
+  color: #303133;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.description-content {
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  min-height: 100px;
 }
 </style>

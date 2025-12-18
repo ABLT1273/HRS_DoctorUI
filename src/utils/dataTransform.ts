@@ -14,8 +14,8 @@ export const TIME_PERIOD_MAP: Record<number, string> = {
 }
 
 export const TIME_PERIOD_DETAIL_MAP: Record<number, string> = {
-  1: '上午 8:00-12:00',
-  2: '下午 14:00-18:00',
+  1: '上午 8:00-12:30',
+  2: '下午 13:30-18:00',
 }
 
 /**
@@ -142,43 +142,48 @@ function getMonday(date: Date): Date {
 
 /**
  * 将前端排班数据转换为周排班表格式（支持格分裂：同一时段多个医生显示在不同行）
+ * 修改为从当天开始显示未来两周（14天）
  */
 export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransformResult {
   console.log('转换排班数据，接收到的shifts:', shifts)
 
   const weekDays: WeekDayColumn[] = []
   const today = new Date()
-  const startMonday = getMonday(new Date(today))
-  console.log('排班表起始周一:', startMonday.toISOString().split('T')[0])
+  // 设置为今天凌晨，确保日期计算准确
+  const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
-  // 生成日期列
-  for (let week = 0; week < 2; week++) {
-    const daysInWeek = 7
+  const formatDate = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
 
-    for (let day = 0; day < daysInWeek; day++) {
-      const currentDate = new Date(startMonday)
-      currentDate.setDate(startMonday.getDate() + week * 7 + day)
+  console.log('排班表起始日期 (今天):', formatDate(startDate))
 
-      const weekLabel = week === 0 ? '本周' : week === 1 ? '下周' : '第三周'
-      const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-      const dayLabel = dayNames[day]
+  const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
-      const dayMonth = currentDate.getMonth() + 1
-      const dayDay = currentDate.getDate()
-      const dayDate = `${dayMonth}.${dayDay}`
+  // 生成未来14天的日期列
+  for (let i = 0; i < 14; i++) {
+    const currentDate = new Date(startDate)
+    currentDate.setDate(startDate.getDate() + i)
 
-      const dayProps = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-      const prop = `week${week + 1}_${dayProps[day]}`
-      const dateStr = currentDate.toISOString().split('T')[0]
+    const dayName = dayNames[currentDate.getDay()]
+    const dayMonth = currentDate.getMonth() + 1
+    const dayDay = currentDate.getDate()
+    const dayDate = `${dayMonth}.${dayDay}`
 
-      weekDays.push({
-        label: `${weekLabel}${dayLabel}`,
-        prop,
-        date: dateStr,
-        weekLabel,
-        dayDate,
-      })
-    }
+    // 使用 week1/week2 前缀区分前后七天，保持与 Home.vue 逻辑兼容
+    const weekNum = i < 7 ? 1 : 2
+    const prop = `week${weekNum}_day${i}`
+    const dateStr = formatDate(currentDate)
+
+    weekDays.push({
+      label: i === 0 ? '今天' : dayName,
+      prop,
+      date: dateStr,
+      dayDate,
+    })
   }
 
   // 按日期和时段分组所有班次
@@ -246,9 +251,6 @@ export function transformScheduleToWeekTable(shifts: Shift[]): ScheduleTransform
         if (rowIndex < scheduleData.length) {
           // 显示诊室位置或医生名
           const cellContent = shift.clinicPlace || shift.docName || ''
-          console.log(
-            `  -> 填充到 [${rowIndex}][${dayCol.prop}] = ${cellContent} (时段${timePeriod}, 医生${index})`,
-          )
           scheduleData[rowIndex]![dayCol.prop] = cellContent
         }
       })

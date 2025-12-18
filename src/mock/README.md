@@ -5,11 +5,13 @@
 ## 加号申请记录 (Add Number Applications)
 
 ### 数据文件
+
 - `addNumberApplications.ts` - 包含两个加号申请记录的示例数据
 
 ### 用例说明
 
 #### 用例1: 紧急加号申请 (urgentAddNumberApplication)
+
 ```typescript
 {
   addId: 'ADD001',
@@ -24,11 +26,13 @@
 **场景描述**: 患者因突发症状需要紧急就诊,申请当天下午时段加号
 
 **测试要点**:
+
 - 验证紧急情况的加号申请显示
 - 测试医生快速审批流程
 - 验证当天加号的时间冲突检测
 
 #### 用例2: 常规加号申请 (regularAddNumberApplication)
+
 ```typescript
 {
   addId: 'ADD002',
@@ -43,6 +47,7 @@
 **场景描述**: 患者因工作原因无法按原计划就诊,申请改约至明天上午
 
 **测试要点**:
+
 - 验证常规加号申请的显示和处理流程
 - 测试跨日期的加号申请
 - 验证申请原因的完整显示
@@ -108,7 +113,10 @@ export function subscribeAddNumberNotifications(
 
 ```javascript
 // 导入mock数据(需要在组件中先导入并暴露到window)
-import { getMockAddNumberApplications, getMockAddNumberApplicationById } from '@/mock/addNumberApplications'
+import {
+  getMockAddNumberApplications,
+  getMockAddNumberApplicationById,
+} from '@/mock/addNumberApplications'
 
 // 获取所有mock数据
 const allApplications = getMockAddNumberApplications()
@@ -162,7 +170,7 @@ VITE_USE_MOCK=true
 export const anotherAddNumberApplication: AddNumberApplication = {
   addId: 'ADD003',
   patientName: '王五',
-  applyTime: '2025-11-14T14:00:00',
+  applyTime: '2025-11-14T13:30:00',
   targetDate: '2025-11-16',
   targetTimePeriod: 3, // 晚上时段
   note: '复诊患者,需要进行后续检查。',
@@ -170,11 +178,7 @@ export const anotherAddNumberApplication: AddNumberApplication = {
 
 // 更新获取函数
 export function getMockAddNumberApplications(): AddNumberApplication[] {
-  return [
-    urgentAddNumberApplication,
-    regularAddNumberApplication,
-    anotherAddNumberApplication,
-  ]
+  return [urgentAddNumberApplication, regularAddNumberApplication, anotherAddNumberApplication]
 }
 ```
 

@@ -326,8 +326,8 @@ const notificationList = computed(() => notifications.value.map(transformNotific
 
 **建议**: 在API文档中明确标注:
 
-- 1 = 上午 (8:00-12:00)
-- 2 = 下午 (14:00-18:00)
+- 1 = 上午 (8:00-12:30)
+- 2 = 下午 (13:30-18:00)
 - 3 = 晚上 (19:00-21:00)
 
 ### 3. 错误处理增强

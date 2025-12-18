@@ -111,6 +111,7 @@ export interface DoctorProfile {
   name: string
   department: string
   title: string
+  description?: string
 }
 
 export interface DoctorProfileResponse {
