@@ -1174,7 +1174,7 @@ const submitScheduleAdjust = async () => {
     if (response.code !== 200) {
       // 特殊处理 409 状态码：重复申请
       if (response.code === 409) {
-        ElMessage.warning(response.msg || '该班次已有待处理的申请，请等待审核后再提交新申请')
+        ElMessage.warning(response.msg || '该班次已有变更申请记录，暂不支持对同一班次多次提交申请')
       } else {
         ElMessage.error(response.msg || '排班申请提交失败')
       }
