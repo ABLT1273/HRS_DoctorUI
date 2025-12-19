@@ -422,12 +422,6 @@
         <el-form-item label="姓名" required>
           <el-input v-model="editProfileForm.name" placeholder="请输入姓名" />
         </el-form-item>
-        <el-form-item label="科室">
-          <el-input v-model="editProfileForm.department" placeholder="请输入科室" />
-        </el-form-item>
-        <el-form-item label="职称">
-          <el-input v-model="editProfileForm.title" placeholder="请输入职称" />
-        </el-form-item>
         <el-form-item label="个人简介">
           <el-input
             v-model="editProfileForm.description"
@@ -762,6 +756,7 @@ const scheduleAdjustForm = reactive({
   selectedShiftData: null as {
     date: string
     timePeriod: number
+    doctorIndex: number
     doctorId?: string
     doctorName?: string
   } | null,
@@ -1013,6 +1008,7 @@ const handleScheduleCellClick = (
   scheduleAdjustForm.selectedShiftData = {
     date: columnInfo.date,
     timePeriod,
+    doctorIndex,
     doctorId: shift?.docId,
     doctorName: cellValue || undefined,
   }
@@ -1055,7 +1051,8 @@ const getMiniScheduleCellClass = ({
   if (
     scheduleAdjustForm.selectedShiftData &&
     scheduleAdjustForm.selectedShiftData.date === columnInfo.date &&
-    scheduleAdjustForm.selectedShiftData.timePeriod === timePeriod
+    scheduleAdjustForm.selectedShiftData.timePeriod === timePeriod &&
+    scheduleAdjustForm.selectedShiftData.doctorIndex === doctorIndex
   ) {
     return 'selected-schedule-cell'
   }
@@ -1497,16 +1494,12 @@ const logout = () => {
 const editProfileDialogVisible = ref(false)
 const editProfileForm = reactive({
   name: '',
-  department: '',
-  title: '',
   description: '',
 })
 
 const openEditProfileDialog = () => {
   // 初始化表单数据
   editProfileForm.name = doctorProfile.value?.name || ''
-  editProfileForm.department = doctorProfile.value?.department || ''
-  editProfileForm.title = doctorProfile.value?.title || ''
   editProfileForm.description = doctorProfile.value?.description || ''
   editProfileDialogVisible.value = true
 }
@@ -1531,8 +1524,6 @@ const submitEditProfile = async () => {
     const response = await updateDoctorProfile({
       doctorId: doctorId.value,
       name: editProfileForm.name.trim(),
-      department: editProfileForm.department.trim() || undefined,
-      title: editProfileForm.title.trim() || undefined,
       description: editProfileForm.description.trim() || undefined,
     })
 

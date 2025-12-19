@@ -122,8 +122,6 @@ export interface DoctorProfileResponse {
 export interface UpdateDoctorProfileRequest {
   doctorId: string
   name?: string
-  department?: string
-  title?: string
   description?: string
 }
 
