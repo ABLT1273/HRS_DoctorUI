@@ -241,6 +241,10 @@
                 {{ doctorDescription }}
               </div>
             </div>
+
+            <div class="edit-button-area">
+              <el-button type="primary" @click="openEditProfileDialog"> 编辑个人信息 </el-button>
+            </div>
           </div>
         </div>
       </el-main>
@@ -406,6 +410,39 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 编辑个人信息弹窗 -->
+    <el-dialog
+      v-model="editProfileDialogVisible"
+      title="编辑个人信息"
+      width="600px"
+      @close="closeEditProfileDialog"
+    >
+      <el-form :model="editProfileForm" label-width="100px">
+        <el-form-item label="姓名" required>
+          <el-input v-model="editProfileForm.name" placeholder="请输入姓名" />
+        </el-form-item>
+        <el-form-item label="科室">
+          <el-input v-model="editProfileForm.department" placeholder="请输入科室" />
+        </el-form-item>
+        <el-form-item label="职称">
+          <el-input v-model="editProfileForm.title" placeholder="请输入职称" />
+        </el-form-item>
+        <el-form-item label="个人简介">
+          <el-input
+            v-model="editProfileForm.description"
+            type="textarea"
+            :rows="6"
+            placeholder="请输入个人简介"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="closeEditProfileDialog">取消</el-button>
+        <el-button type="primary" @click="submitEditProfile">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -433,6 +470,7 @@ import {
   updatePatientStatus,
   getRegisterRecords,
   acceptNotification,
+  updateDoctorProfile,
 } from '@/services/api'
 import { useDoctorData } from '@/composables/useDoctorData'
 import type {
@@ -1455,6 +1493,69 @@ const logout = () => {
   router.push('/login')
 }
 
+// 编辑个人信息相关
+const editProfileDialogVisible = ref(false)
+const editProfileForm = reactive({
+  name: '',
+  department: '',
+  title: '',
+  description: '',
+})
+
+const openEditProfileDialog = () => {
+  // 初始化表单数据
+  editProfileForm.name = doctorProfile.value?.name || ''
+  editProfileForm.department = doctorProfile.value?.department || ''
+  editProfileForm.title = doctorProfile.value?.title || ''
+  editProfileForm.description = doctorProfile.value?.description || ''
+  editProfileDialogVisible.value = true
+}
+
+const closeEditProfileDialog = () => {
+  editProfileDialogVisible.value = false
+}
+
+const submitEditProfile = async () => {
+  if (!doctorId.value) {
+    ElMessage.error('医生信息已失效，请重新登录')
+    router.push('/login')
+    return
+  }
+
+  if (!editProfileForm.name.trim()) {
+    ElMessage.warning('姓名不能为空')
+    return
+  }
+
+  try {
+    const response = await updateDoctorProfile({
+      doctorId: doctorId.value,
+      name: editProfileForm.name.trim(),
+      department: editProfileForm.department.trim() || undefined,
+      title: editProfileForm.title.trim() || undefined,
+      description: editProfileForm.description.trim() || undefined,
+    })
+
+    if (response.code !== 200) {
+      throw new Error(response.msg || '更新个人信息失败')
+    }
+
+    ElMessage.success('个人信息已更新')
+    editProfileDialogVisible.value = false
+
+    // 重新加载医生信息
+    if (doctorProfile.value && response.data?.doctor) {
+      doctorProfile.value = response.data.doctor
+    }
+  } catch (err) {
+    if (err instanceof Error) {
+      ElMessage.error(err.message)
+    } else {
+      ElMessage.error('更新个人信息失败')
+    }
+  }
+}
+
 const handleTabSelect = (index: string) => {
   activeTab.value = index as 'duty' | 'personal'
 }
@@ -2064,5 +2165,10 @@ onMounted(() => {
   white-space: pre-wrap;
   word-wrap: break-word;
   min-height: 100px;
+}
+
+.edit-button-area {
+  margin-top: 30px;
+  text-align: center;
 }
 </style>

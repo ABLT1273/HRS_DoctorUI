@@ -14,6 +14,7 @@ import type {
   NotificationsResponse,
   NotificationAcceptedRequest,
   DoctorProfileResponse,
+  UpdateDoctorProfileRequest,
   ScheduleChangeRequest,
   ScheduleChangeResponse,
   PatientStatusRequest,
@@ -368,6 +369,17 @@ function createSSEConnection<T>(
   }
 
   return eventSource
+}
+
+/**
+ * 更新医生个人信息
+ * PUT /doctor/profile
+ */
+export async function updateDoctorProfile(
+  request: UpdateDoctorProfileRequest,
+): Promise<ApiResponse<DoctorProfileResponse>> {
+  const response = await apiClient.put<ApiResponse<DoctorProfileResponse>>('/profile', request)
+  return response.data
 }
 
 /**

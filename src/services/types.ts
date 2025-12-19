@@ -118,6 +118,15 @@ export interface DoctorProfileResponse {
   doctor: DoctorProfile
 }
 
+// 更新医生个人信息请求
+export interface UpdateDoctorProfileRequest {
+  doctorId: string
+  name?: string
+  department?: string
+  title?: string
+  description?: string
+}
+
 // 排班变更申请
 export interface ScheduleChangeRequest {
   docId: string
